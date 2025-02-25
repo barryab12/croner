@@ -1,9 +1,19 @@
+"use client";
+
+import { useState } from "react";
+import TaskModal from "@/app/components/ui/task-modal";
+
 export default function TasksPage() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Tâches Cron</h1>
-        <button className="rounded-md bg-primary px-4 py-2 text-white hover:bg-primary/90">
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          className="rounded-md bg-primary px-4 py-2 text-white hover:bg-primary/90"
+        >
           Nouvelle Tâche
         </button>
       </div>
@@ -53,6 +63,11 @@ export default function TasksPage() {
           </div>
         </div>
       </div>
+
+      <TaskModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+      />
     </div>
-  )
+  );
 }
