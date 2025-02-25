@@ -110,7 +110,7 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-2xl rounded-lg bg-background p-6">
+      <div className="w-full max-w-2xl rounded-lg bg-background p-6 border border-border shadow-lg">
         <div className="flex items-center justify-between border-b pb-4">
           <h2 className="text-xl font-bold">
             {mode === 'create' ? 'Nouvelle Tâche' : 'Modifier la Tâche'}
