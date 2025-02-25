@@ -31,7 +31,7 @@ export default function LoginForm() {
       }
 
       router.refresh();
-      router.push("/dashboard");
+      router.push("/tasks");
     } catch (error) {
       setError("Une erreur est survenue");
     } finally {

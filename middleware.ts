@@ -37,7 +37,7 @@ export default withAuth(
     }
 
     if (req.nextUrl.pathname.startsWith("/admin") && token.role !== Role.ADMIN) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+      return NextResponse.redirect(new URL("/tasks", req.url));
     }
   },
   {

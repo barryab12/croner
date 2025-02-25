@@ -1,4 +1,7 @@
+'use client';
+
 import Link from "next/link"
+import { signOut } from "next-auth/react"
 
 export default function DashboardLayout({
   children,
@@ -30,7 +33,10 @@ export default function DashboardLayout({
               {/* Icon pour le thème */}
               <span className="sr-only">Toggle theme</span>
             </button>
-            <button className="text-sm font-medium">
+            <button 
+              onClick={() => signOut({ callbackUrl: '/login' })}
+              className="text-sm font-medium hover:text-primary transition-colors"
+            >
               Déconnexion
             </button>
           </div>
