@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { signOut } from "next-auth/react"
+import { ExitIcon } from "@radix-ui/react-icons"
 
 export default function DashboardLayout({
   children,
@@ -35,9 +36,11 @@ export default function DashboardLayout({
             </button>
             <button 
               onClick={() => signOut({ callbackUrl: '/login' })}
-              className="text-sm font-medium hover:text-primary transition-colors"
+              className="h-9 w-9 rounded-md border inline-flex items-center justify-center hover:bg-muted transition-colors"
+              title="Déconnexion"
             >
-              Déconnexion
+              <ExitIcon className="h-4 w-4" />
+              <span className="sr-only">Déconnexion</span>
             </button>
           </div>
         </div>
