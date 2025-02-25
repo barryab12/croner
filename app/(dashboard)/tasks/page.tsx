@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import TaskModal from '@/app/components/ui/task-modal';
 import DeleteTaskDialog from '@/app/components/ui/delete-task-dialog';
 import type { Task } from '@/types/prisma';
+import { Pencil1Icon, PlayIcon, TrashIcon } from "@radix-ui/react-icons";
 
 export default function TasksPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -129,18 +130,23 @@ export default function TasksPage() {
                 <div className="flex items-center gap-1">
                   <button 
                     onClick={() => handleEdit(task)}
-                    className="rounded-md border px-1.5 py-1 text-sm hover:bg-muted"
+                    className="rounded-md border p-1.5 hover:bg-muted"
+                    title="Éditer"
                   >
-                    Éditer
+                    <Pencil1Icon className="h-4 w-4" />
                   </button>
-                  <button className="rounded-md border px-1.5 py-1 text-sm hover:bg-muted">
-                    Exécuter
+                  <button 
+                    className="rounded-md border p-1.5 hover:bg-muted"
+                    title="Exécuter"
+                  >
+                    <PlayIcon className="h-4 w-4" />
                   </button>
                   <button 
                     onClick={() => handleDeleteClick(task)}
-                    className="rounded-md border border-red-200 px-1.5 py-1 text-sm text-red-600 hover:bg-red-50"
+                    className="rounded-md border border-red-200 p-1.5 text-red-600 hover:bg-red-50"
+                    title="Supprimer"
                   >
-                    Supprimer
+                    <TrashIcon className="h-4 w-4" />
                   </button>
                 </div>
               </div>
