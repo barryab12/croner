@@ -360,70 +360,96 @@ export default function HistoryPage() {
       
       {/* Dialog pour afficher les détails de l'exécution */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] md:max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl">
-              Détails de l'exécution - {selectedExecution?.task.name}
+            <DialogTitle className="text-xl flex items-center justify-between flex-wrap gap-2">
+              <span className="truncate max-w-[75%]">Détails de l'exécution - {selectedExecution?.task.name}</span>
+              {selectedExecution && (
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  selectedExecution.status === 'SUCCESS' 
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
+                    : selectedExecution.status === 'TIMEOUT'
+                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
+                    : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                }`}>
+                  {selectedExecution.status === 'SUCCESS' 
+                    ? 'Succès' 
+                    : selectedExecution.status === 'TIMEOUT'
+                    ? 'Timeout'
+                    : 'Échec'}
+                </span>
+              )}
             </DialogTitle>
           </DialogHeader>
           
           {selectedExecution && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Commande</p>
-                  <p className="font-mono bg-muted p-2 rounded mt-1 text-sm overflow-x-auto">
-                    {selectedExecution.task.command}
-                  </p>
+            <div className="space-y-6">
+              {/* Informations de commande et timing */}
+              <div className="border rounded-lg p-4 bg-card/50">
+                <h3 className="font-medium mb-3">Informations générales</h3>
+                
+                <div className="mb-4">
+                  <p className="text-sm text-muted-foreground mb-1">Commande exécutée</p>
+                  <div className="font-mono bg-muted p-3 rounded text-sm overflow-x-auto break-all">
+                    <code className="whitespace-pre-wrap break-all">
+                      {selectedExecution.task.command || "Aucune commande définie"}
+                    </code>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Status</p>
-                  <p className={`font-medium ${
-                    selectedExecution.status === 'SUCCESS' 
-                      ? 'text-green-600' 
-                      : selectedExecution.status === 'TIMEOUT'
-                      ? 'text-amber-600'
-                      : 'text-red-600'
-                  }`}>
-                    {selectedExecution.status === 'SUCCESS' 
-                      ? 'Succès' 
-                      : selectedExecution.status === 'TIMEOUT'
-                      ? 'Timeout'
-                      : 'Échec'}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Démarré à</p>
-                  <p>{format(new Date(selectedExecution.startTime), 'dd/MM/yyyy HH:mm:ss', { locale: fr })}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Terminé à</p>
-                  <p>{format(new Date(selectedExecution.endTime), 'dd/MM/yyyy HH:mm:ss', { locale: fr })}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Durée</p>
-                  <p>{formatDuration(selectedExecution.duration)}</p>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Démarré à</p>
+                    <p className="font-medium">{format(new Date(selectedExecution.startTime), 'dd/MM/yyyy HH:mm:ss', { locale: fr })}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Terminé à</p>
+                    <p className="font-medium">{format(new Date(selectedExecution.endTime), 'dd/MM/yyyy HH:mm:ss', { locale: fr })}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Durée</p>
+                    <p className="font-medium">{formatDuration(selectedExecution.duration)}</p>
+                  </div>
                 </div>
               </div>
               
-              {selectedExecution.status === 'SUCCESS' && selectedExecution.output && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Sortie</p>
-                  <pre className="bg-muted p-4 rounded-md overflow-x-auto text-sm mt-1 whitespace-pre-wrap">
-                    {selectedExecution.output || 'Aucune sortie'}
-                  </pre>
+              {/* Sortie de la commande - succès */}
+              {selectedExecution.status === 'SUCCESS' && (
+                <div className="border rounded-lg p-4 bg-card/50">
+                  <h3 className="font-medium mb-3 flex items-center">
+                    <span className="h-2 w-2 rounded-full bg-green-500 mr-2"></span>
+                    Sortie de la commande
+                  </h3>
+                  <div className="relative">
+                    <pre className="bg-muted p-4 rounded-md text-sm whitespace-pre-wrap break-words border max-h-[300px] overflow-y-auto w-full">
+                      <code className="break-all">
+                        {selectedExecution.output || 'Aucune sortie'}
+                      </code>
+                    </pre>
+                  </div>
                 </div>
               )}
               
-              {selectedExecution.status === 'ERROR' && selectedExecution.error && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Erreur</p>
-                  <pre className="bg-red-50 text-red-900 dark:bg-red-950 dark:text-red-200 p-4 rounded-md overflow-x-auto text-sm mt-1 whitespace-pre-wrap">
-                    {selectedExecution.error}
-                  </pre>
+              {/* Erreur de la commande */}
+              {selectedExecution.status !== 'SUCCESS' && (
+                <div className="border rounded-lg p-4 bg-card/50">
+                  <h3 className="font-medium mb-3 flex items-center">
+                    <span className={`h-2 w-2 rounded-full ${
+                      selectedExecution.status === 'TIMEOUT' ? 'bg-amber-500' : 'bg-red-500'
+                    } mr-2`}></span>
+                    {selectedExecution.status === 'TIMEOUT' ? 'Timeout de la commande' : 'Erreur de la commande'}
+                  </h3>
+                  <div className="relative">
+                    <pre className={`p-4 rounded-md text-sm whitespace-pre-wrap border max-h-[300px] overflow-y-auto w-full ${
+                      selectedExecution.status === 'TIMEOUT'
+                        ? 'bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-200 border-amber-200'
+                        : 'bg-red-50 text-red-900 dark:bg-red-950 dark:text-red-200 border-red-200'
+                    }`}>
+                      <code className="break-all">
+                        {selectedExecution.error || selectedExecution.output || 'Aucune information disponible'}
+                      </code>
+                    </pre>
+                  </div>
                 </div>
               )}
             </div>
