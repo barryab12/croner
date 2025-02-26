@@ -5,17 +5,38 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --border: #e5e7eb;
+  /* Nouvelle couleur primaire plus moderne */
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --border: #27272a;
+  /* Version sombre légèrement plus douce */
+  --primary: #60a5fa;
+  --primary-foreground: #ffffff;
+  --muted: #18181b;
+  --muted-foreground: #a1a1aa;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Ajout de styles personnalisés pour les boutons */
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-primary-foreground rounded-md px-4 py-2 
+           font-medium transition-all duration-200
+           hover:bg-primary/90 hover:shadow-md
+           active:transform active:scale-[0.98]
+           disabled:opacity-50 disabled:pointer-events-none;
+  }
 }

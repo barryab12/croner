@@ -108,108 +108,111 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-2xl rounded-lg bg-background p-6 border border-border shadow-lg">
-        <div className="flex items-center justify-between border-b pb-4">
-          <h2 className="text-xl font-bold">
-            {mode === 'create' ? 'Nouvelle Tâche' : 'Modifier la Tâche'}
-          </h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            ✕
-          </button>
-        </div>
-
-        {error && (
-          <div className="mt-4 rounded-md bg-red-50 p-4 text-red-600">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Nom de la tâche</label>
-            <input
-              type="text"
-              className="w-full rounded-md border bg-background px-3 py-2"
-              placeholder="ex: Sauvegarde quotidienne"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
+  return !isOpen ? null : (
+    <>
+      <div className="fixed inset-0 z-50 bg-black/50" />
+      <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto">
+        <div className="w-full max-w-2xl rounded-lg bg-background p-6 border border-border shadow-lg m-4 mt-20">
+          <div className="flex items-center justify-between border-b pb-4">
+            <h2 className="text-xl font-bold">
+              {mode === 'create' ? 'Nouvelle Tâche' : 'Modifier la Tâche'}
+            </h2>
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+              ✕
+            </button>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Commande</label>
-            <input
-              type="text"
-              className="w-full rounded-md border bg-background px-3 py-2"
-              placeholder="ex: /usr/bin/backup.sh"
-              value={formData.command}
-              onChange={(e) => setFormData({ ...formData, command: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Type de planification</label>
-              <select
-                className="w-full rounded-md border bg-background px-3 py-2"
-                value={formData.schedule}
-                onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
-              >
-                <option value="daily">Quotidienne</option>
-                <option value="weekly">Hebdomadaire</option>
-                <option value="monthly">Mensuelle</option>
-                <option value="custom">Personnalisée</option>
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Heure d'exécution</label>
-              <input
-                type="time"
-                className="w-full rounded-md border bg-background px-3 py-2"
-                value={formData.time}
-                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-
-          {formData.schedule === 'custom' && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Expression cron</label>
-              <input
-                type="text"
-                className="w-full rounded-md border bg-background px-3 py-2"
-                placeholder="ex: */5 * * * *"
-                value={formData.customSchedule}
-                onChange={(e) => setFormData({ ...formData, customSchedule: e.target.value })}
-                required={formData.schedule === 'custom'}
-              />
+          {error && (
+            <div className="mt-4 rounded-md bg-red-50 p-4 text-red-600">
+              {error}
             </div>
           )}
 
-          <div className="flex justify-end space-x-2 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border px-4 py-2 hover:bg-muted"
-            >
-              Annuler
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="rounded-md bg-primary px-4 py-2 text-white hover:bg-primary/90 disabled:opacity-50"
-            >
-              {isSubmitting ? 'Enregistrement...' : mode === 'create' ? 'Créer la tâche' : 'Enregistrer les modifications'}
-            </button>
-          </div>
-        </form>
+          <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nom de la tâche</label>
+              <input
+                type="text"
+                className="w-full rounded-md border bg-background px-3 py-2"
+                placeholder="ex: Sauvegarde quotidienne"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Commande</label>
+              <input
+                type="text"
+                className="w-full rounded-md border bg-background px-3 py-2"
+                placeholder="ex: /usr/bin/backup.sh"
+                value={formData.command}
+                onChange={(e) => setFormData({ ...formData, command: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Type de planification</label>
+                <select
+                  className="w-full rounded-md border bg-background px-3 py-2"
+                  value={formData.schedule}
+                  onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
+                >
+                  <option value="daily">Quotidienne</option>
+                  <option value="weekly">Hebdomadaire</option>
+                  <option value="monthly">Mensuelle</option>
+                  <option value="custom">Personnalisée</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Heure d'exécution</label>
+                <input
+                  type="time"
+                  className="w-full rounded-md border bg-background px-3 py-2"
+                  value={formData.time}
+                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
+            {formData.schedule === 'custom' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Expression cron</label>
+                <input
+                  type="text"
+                  className="w-full rounded-md border bg-background px-3 py-2"
+                  placeholder="ex: */5 * * * *"
+                  value={formData.customSchedule}
+                  onChange={(e) => setFormData({ ...formData, customSchedule: e.target.value })}
+                  required={formData.schedule === 'custom'}
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-md border px-4 py-2 hover:bg-muted"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="rounded-md bg-primary px-4 py-2 text-white hover:bg-primary/90 disabled:opacity-50"
+              >
+                {isSubmitting ? 'Enregistrement...' : mode === 'create' ? 'Créer la tâche' : 'Enregistrer les modifications'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

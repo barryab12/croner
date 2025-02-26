@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { signOut } from "next-auth/react"
 import { ExitIcon } from "@radix-ui/react-icons"
+import { ThemeToggle } from "@/app/components/theme-toggle"
 
 export default function DashboardLayout({
   children,
@@ -11,7 +12,7 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="min-h-screen bg-background">
-      <nav className="border-b">
+      <nav className="sticky top-0 border-b z-[60] bg-background shadow-sm">
         <div className="flex h-16 items-center px-4">
           <div className="flex items-center space-x-4">
             <Link href="/tasks" className="text-xl font-bold">
@@ -30,10 +31,7 @@ export default function DashboardLayout({
             </div>
           </div>
           <div className="ml-auto flex items-center space-x-4">
-            <button className="h-9 w-9 rounded-md border">
-              {/* Icon pour le thème */}
-              <span className="sr-only">Toggle theme</span>
-            </button>
+            <ThemeToggle />
             <button 
               onClick={() => signOut({ callbackUrl: '/login' })}
               className="h-9 w-9 rounded-md border inline-flex items-center justify-center hover:bg-muted transition-colors"
