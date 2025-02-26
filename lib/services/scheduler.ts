@@ -55,16 +55,10 @@ class TaskScheduler {
     this.jobs.set(task.id, job);
     const nextRun = job.nextInvocation();
     
-    // Convertir la date en format ISO 
-    if (nextRun) {
-      this.updateNextRun(task.id, nextRun.toISOString());
-    }
-    
-    console.log(`Prochaine exécution de la tâche ${task.id}: ${nextRun}`);
     return nextRun ? nextRun.toISOString() : null;
   }
 
-  private async updateNextRun(taskId: string, nextRun: string) {
+  private async updateNextRun(taskId: string, nextRun: string | null) {
     try {
       await updateTaskNextRun(taskId, nextRun);
     } catch (error) {
@@ -80,7 +74,21 @@ class TaskScheduler {
 
   async executeTaskNow(taskId: string) {
     try {
-      return await executeTask(taskId);
+      const result = await executeTask(taskId);
+      const task = result.task;
+
+      // Si la tâche est active, mettre à jour la prochaine exécution
+      if (task.isActive) {
+        const job = this.jobs.get(taskId);
+        if (job) {
+          const nextRun = job.nextInvocation();
+          if (nextRun) {
+            await this.updateNextRun(taskId, nextRun.toISOString());
+          }
+        }
+      }
+
+      return result;
     } catch (error) {
       console.error(`Erreur lors de l'exécution manuelle de la tâche ${taskId}:`, error);
       throw error;
@@ -94,9 +102,13 @@ class TaskScheduler {
 
       // Planifier ou annuler la tâche selon le nouvel état
       if (isActive) {
-        this.scheduleTask(task);
+        const nextRunStr = this.scheduleTask(task);
+        if (nextRunStr) {
+          await this.updateNextRun(taskId, nextRunStr);
+        }
       } else {
         this.cancelTask(taskId);
+        await this.updateNextRun(taskId, null);
       }
 
       return task;
@@ -122,7 +134,10 @@ class TaskScheduler {
       console.log(`${tasks.length} tâches actives récupérées`);
       
       tasks.forEach((task: Task) => {
-        this.scheduleTask(task);
+        const nextRunStr = this.scheduleTask(task);
+        if (nextRunStr) {
+          this.updateNextRun(task.id, nextRunStr);
+        }
       });
       console.log('Scheduler démarré avec succès');
     } catch (error) {

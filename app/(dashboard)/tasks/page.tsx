@@ -93,7 +93,18 @@ export default function TasksPage() {
         throw new Error('Erreur lors de la modification du statut');
       }
 
-      await fetchTasks();
+      const updatedTask = await response.json();
+      
+      // Mettre à jour la tâche localement avec toutes les informations
+      setTasks(prevTasks => 
+        prevTasks.map(t => 
+          t.id === task.id ? {
+            ...t,
+            isActive: !t.isActive,
+            nextRun: !t.isActive ? updatedTask.nextRun : null // Mettre à jour nextRun selon l'état
+          } : t
+        )
+      );
     } catch (error) {
       setError('Une erreur est survenue lors de la modification du statut');
       console.error(error);
@@ -103,12 +114,12 @@ export default function TasksPage() {
   async function handleExecute(taskId: string) {
     setExecutingTaskId(taskId);
     try {
-      const response = await fetch('/api/tasks/execute', {
-        method: 'POST',
+      const response = await fetch('/api/tasks', {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ taskId }),
+        body: JSON.stringify({ id: taskId, execute: true }),
       });
 
       if (!response.ok) {
@@ -116,8 +127,18 @@ export default function TasksPage() {
       }
 
       const result = await response.json();
-      // Rafraîchir la liste pour voir le nouveau statut
-      await fetchTasks();
+      
+      // Mettre à jour la tâche localement avec ses nouvelles informations
+      setTasks(prevTasks => 
+        prevTasks.map(t => 
+          t.id === taskId ? {
+            ...t,
+            lastStatus: result.task.lastStatus,
+            lastRun: result.task.lastRun,
+            nextRun: result.task.nextRun
+          } : t
+        )
+      );
     } catch (error) {
       setError('Une erreur est survenue lors de l\'exécution de la tâche');
       console.error(error);

@@ -30,7 +30,7 @@ export async function executeTask(taskId: string) {
       data: {
         lastRun: startTime,
         lastStatus: 'success',
-        nextRun: nextRunStr ? new Date(nextRunStr) : null
+        nextRun: nextRunStr ? new Date(nextRunStr) : task.nextRun
       }
     });
 
@@ -63,7 +63,7 @@ export async function executeTask(taskId: string) {
     endTime = new Date();
     duration = endTime.getTime() - startTime.getTime();
 
-    // Récupérer la chaîne ISO de la prochaine exécution
+    // En cas d'erreur, on garde la même logique de nextRun que pour le succès
     const nextRunStr = taskScheduler.getNextRun(taskId);
 
     // Mettre à jour la tâche avec les informations de la dernière exécution
@@ -72,7 +72,7 @@ export async function executeTask(taskId: string) {
       data: {
         lastRun: startTime,
         lastStatus: 'error',
-        nextRun: nextRunStr ? new Date(nextRunStr) : null
+        nextRun: nextRunStr ? new Date(nextRunStr) : task.nextRun
       }
     });
 
@@ -95,16 +95,22 @@ export async function executeTask(taskId: string) {
 export async function toggleTaskInDatabase(taskId: string, isActive: boolean) {
   const task = await prisma.task.update({
     where: { id: taskId },
-    data: { isActive },
+    data: { 
+      isActive,
+      // Si la tâche est désactivée, on met nextRun à null
+      ...(isActive ? {} : { nextRun: null })
+    },
   });
   return task;
 }
 
-export async function updateTaskNextRun(taskId: string, nextRun: string) {
+export async function updateTaskNextRun(taskId: string, nextRun: string | null) {
   try {
     await prisma.task.update({
       where: { id: taskId },
-      data: { nextRun: new Date(nextRun) },
+      data: { 
+        nextRun: nextRun ? new Date(nextRun) : null 
+      },
     });
   } catch (error) {
     console.error(`Erreur lors de la mise à jour de nextRun pour la tâche ${taskId}:`, error);
@@ -115,7 +121,11 @@ export async function updateTaskNextRun(taskId: string, nextRun: string) {
 export async function toggleTaskStatus(taskId: string, active: boolean) {
   const task = await prisma.task.update({
     where: { id: taskId },
-    data: { isActive: active }
+    data: { 
+      isActive: active,
+      // Si on désactive la tâche, on met nextRun à null
+      ...(active ? {} : { nextRun: null })
+    }
   });
 
   if (active) {

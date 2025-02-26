@@ -134,7 +134,8 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
         : { 
             id: task?.id, 
             name: formData.name, 
-            command: formData.command, 
+            command: formData.command,
+            isActive: task?.isActive,
             schedule: formData.schedule === 'custom' ? formData.customSchedule : cronExpression 
           };
 

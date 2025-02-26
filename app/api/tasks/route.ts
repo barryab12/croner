@@ -41,13 +41,27 @@ export async function POST(req: Request) {
       throw new Error('Échec de la création de la tâche');
     }
 
+    // Planifier la tâche immédiatement après sa création
+    const nextRunStr = taskScheduler.scheduleTask(task);
+    if (nextRunStr) {
+      await prisma.task.update({
+        where: { id: task.id },
+        data: { nextRun: new Date(nextRunStr) }
+      });
+    }
+
+    // Récupérer la tâche mise à jour avec nextRun
+    const updatedTask = await prisma.task.findUnique({
+      where: { id: task.id }
+    });
+
     // Sérialiser les dates
     const serializedTask = {
-      ...task,
-      nextRun: task.nextRun?.toISOString() || null,
-      lastRun: task.lastRun?.toISOString() || null,
-      createdAt: task.createdAt.toISOString(),
-      updatedAt: task.updatedAt.toISOString(),
+      ...updatedTask,
+      nextRun: updatedTask?.nextRun?.toISOString() || null,
+      lastRun: updatedTask?.lastRun?.toISOString() || null,
+      createdAt: updatedTask?.createdAt.toISOString(),
+      updatedAt: updatedTask?.updatedAt.toISOString(),
     };
 
     return NextResponse.json(serializedTask);
@@ -128,7 +142,7 @@ export async function PATCH(req: Request) {
     // Si c'est une demande d'activation/désactivation
     if (typeof isActive === 'boolean') {
       try {
-        // Vérifier les permissions d'utilisateur avant de permettre la modification
+        // Vérifier les permissions d'utilisateur
         const task = await prisma.task.findUnique({ where: { id } });
         if (!task) {
           return NextResponse.json({ message: 'Tâche non trouvée' }, { status: 404 });
@@ -136,18 +150,40 @@ export async function PATCH(req: Request) {
         if (task.userId !== session.user.id) {
           return NextResponse.json({ message: 'Non autorisé' }, { status: 403 });
         }
+
+        // Mise à jour initiale de l'état actif
+        const updatedTask = await prisma.task.update({
+          where: { id },
+          data: { 
+            isActive,
+            // Si on désactive la tâche, on met nextRun à null
+            ...(isActive ? {} : { nextRun: null })
+          }
+        });
+
+        // Si la tâche est activée, calculer et mettre à jour nextRun
+        if (isActive) {
+          const nextRunStr = taskScheduler.scheduleTask(updatedTask);
+          if (nextRunStr) {
+            await prisma.task.update({
+              where: { id },
+              data: { nextRun: new Date(nextRunStr) }
+            });
+          }
+        } else {
+          taskScheduler.cancelTask(id);
+        }
+
+        // Récupérer l'état final de la tâche
+        const finalTask = await prisma.task.findUnique({ where: { id } });
         
-        // Appeler la méthode toggleTask du scheduler qui accède maintenant directement à la base de données
-        const updatedTask = await taskScheduler.toggleTask(id, isActive);
-        // Sérialiser les dates
-        const serializedTask = {
-          ...updatedTask,
-          nextRun: updatedTask.nextRun?.toISOString() || null,
-          lastRun: updatedTask.lastRun?.toISOString() || null,
-          createdAt: updatedTask.createdAt.toISOString(),
-          updatedAt: updatedTask.updatedAt.toISOString(),
-        };
-        return NextResponse.json(serializedTask);
+        return NextResponse.json({
+          ...finalTask,
+          nextRun: finalTask?.nextRun?.toISOString() || null,
+          lastRun: finalTask?.lastRun?.toISOString() || null,
+          createdAt: finalTask?.createdAt.toISOString(),
+          updatedAt: finalTask?.updatedAt.toISOString(),
+        });
       } catch (error) {
         console.error('Erreur lors de la modification du statut:', error);
         return NextResponse.json({ 
@@ -157,7 +193,7 @@ export async function PATCH(req: Request) {
       }
     }
 
-    // Si c'est une mise à jour normale de la tâche
+    // Si c'est une mise à jour normale
     const validatedData = taskSchema.parse(data);
     const task = await prisma.task.findUnique({ where: { id } });
 
@@ -174,19 +210,27 @@ export async function PATCH(req: Request) {
       data: validatedData,
     });
 
-    // Mettre à jour la planification
-    taskScheduler.scheduleTask(updatedTask);
+    // Replanifier la tâche si elle est active
+    if (updatedTask.isActive) {
+      const nextRunStr = taskScheduler.scheduleTask(updatedTask);
+      if (nextRunStr) {
+        await prisma.task.update({
+          where: { id },
+          data: { nextRun: new Date(nextRunStr) }
+        });
+      }
+    }
 
-    // Sérialiser les dates
-    const serializedTask = {
-      ...updatedTask,
-      nextRun: updatedTask.nextRun?.toISOString() || null,
-      lastRun: updatedTask.lastRun?.toISOString() || null,
-      createdAt: updatedTask.createdAt.toISOString(),
-      updatedAt: updatedTask.updatedAt.toISOString(),
-    };
-
-    return NextResponse.json(serializedTask);
+    // Récupérer l'état final
+    const finalTask = await prisma.task.findUnique({ where: { id } });
+    
+    return NextResponse.json({
+      ...finalTask,
+      nextRun: finalTask?.nextRun?.toISOString() || null,
+      lastRun: finalTask?.lastRun?.toISOString() || null,
+      createdAt: finalTask?.createdAt.toISOString(),
+      updatedAt: finalTask?.updatedAt.toISOString(),
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ errors: error.errors }, { status: 400 });
