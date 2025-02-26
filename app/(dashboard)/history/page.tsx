@@ -6,13 +6,14 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale/fr'
 import { Loader2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import DeleteExecutionsDialog from '@/app/components/ui/delete-executions-dialog'
 
 type ExecutionStatus = 'SUCCESS' | 'ERROR' | 'TIMEOUT'
 
 interface Task {
   id: string
   name: string
-  command?: string // Ajout de la propriété command qui est nécessaire dans la vue de détail
+  command?: string 
 }
 
 interface TaskExecution {
@@ -51,6 +52,8 @@ export default function HistoryPage() {
   const [selectedExecution, setSelectedExecution] = useState<TaskExecution | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isLoadingDetails, setIsLoadingDetails] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   
   // Fonction pour charger les exécutions
   const fetchExecutions = async () => {
@@ -143,6 +146,42 @@ export default function HistoryPage() {
     updateFilters()
   }, [status, date, page])
 
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(executions.map(exec => exec.id))
+    } else {
+      setSelectedIds([])
+    }
+  }
+
+  const handleSelectExecution = (id: string) => {
+    setSelectedIds(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(execId => execId !== id)
+      } else {
+        return [...prev, id]
+      }
+    })
+  }
+
+  const handleDelete = async () => {
+    try {
+      const response = await fetch(`/api/executions?ids=${selectedIds.join(',')}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la suppression')
+      }
+
+      setDeleteDialogOpen(false)
+      setSelectedIds([])
+      await fetchExecutions()
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -173,6 +212,14 @@ export default function HistoryPage() {
             }}
           />
         </div>
+        {selectedIds.length > 0 && (
+          <button
+            onClick={() => setDeleteDialogOpen(true)}
+            className="flex items-center rounded-md bg-red-600 px-4 py-2 text-white hover:bg-red-700"
+          >
+            Supprimer ({selectedIds.length})
+          </button>
+        )}
       </div>
 
       {error && (
@@ -183,7 +230,15 @@ export default function HistoryPage() {
 
       <div className="rounded-lg border bg-card">
         <div className="p-4">
-          <div className="grid grid-cols-5 gap-4 border-b pb-4 font-medium">
+          <div className="grid grid-cols-6 gap-4 border-b pb-4 font-medium">
+            <div>
+              <input
+                type="checkbox"
+                className="rounded border-gray-300"
+                checked={selectedIds.length === executions.length && executions.length > 0}
+                onChange={handleSelectAll}
+              />
+            </div>
             <div>Tâche</div>
             <div>Date d'exécution</div>
             <div>Durée</div>
@@ -201,7 +256,15 @@ export default function HistoryPage() {
             </div>
           ) : (
             executions.map(execution => (
-              <div key={execution.id} className="grid grid-cols-5 gap-4 py-4 hover:bg-muted/50">
+              <div key={execution.id} className="grid grid-cols-6 gap-4 py-4 hover:bg-muted/50">
+                <div>
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300"
+                    checked={selectedIds.includes(execution.id)}
+                    onChange={() => handleSelectExecution(execution.id)}
+                  />
+                </div>
                 <div className="font-medium">{execution.task.name}</div>
                 <div className="text-sm text-muted-foreground">
                   {format(new Date(execution.startTime), 'dd/MM/yyyy HH:mm:ss', { locale: fr })}
@@ -367,6 +430,12 @@ export default function HistoryPage() {
           )}
         </DialogContent>
       </Dialog>
+      <DeleteExecutionsDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDelete}
+        count={selectedIds.length}
+      />
     </div>
   )
 }

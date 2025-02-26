@@ -127,3 +127,47 @@ export async function GET(req: Request) {
     );
   }
 }
+
+export async function DELETE(req: Request) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ message: 'Non autorisé' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(req.url)
+    const ids = searchParams.get('ids')?.split(',')
+
+    if (!ids || ids.length === 0) {
+      return NextResponse.json({ message: 'IDs requis' }, { status: 400 })
+    }
+
+    // Vérifier que toutes les exécutions appartiennent à l'utilisateur
+    const executions = await prisma.taskExecution.findMany({
+      where: {
+        id: { in: ids },
+        task: {
+          userId: session.user.id
+        }
+      }
+    })
+
+    if (executions.length !== ids.length) {
+      return NextResponse.json({ message: 'Non autorisé' }, { status: 403 })
+    }
+
+    await prisma.taskExecution.deleteMany({
+      where: {
+        id: { in: ids }
+      }
+    })
+
+    return NextResponse.json({ message: 'Exécutions supprimées avec succès' })
+  } catch (error) {
+    console.error(error)
+    return NextResponse.json(
+      { message: 'Erreur lors de la suppression des exécutions' },
+      { status: 500 }
+    )
+  }
+}
