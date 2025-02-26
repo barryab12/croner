@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale/fr'
 import { Loader2 } from 'lucide-react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import DeleteExecutionsDialog from '@/app/components/ui/delete-executions-dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 
 type ExecutionStatus = 'SUCCESS' | 'ERROR' | 'TIMEOUT'
 
@@ -231,12 +232,11 @@ export default function HistoryPage() {
       <div className="rounded-lg border bg-card">
         <div className="p-4">
           <div className="grid grid-cols-6 gap-4 border-b pb-4 font-medium">
-            <div>
-              <input
-                type="checkbox"
-                className="rounded border-gray-300"
+            <div className="flex items-center">
+              <Checkbox 
                 checked={selectedIds.length === executions.length && executions.length > 0}
                 onChange={handleSelectAll}
+                className="shadow-sm hover:shadow-md"
               />
             </div>
             <div>Tâche</div>
@@ -257,12 +257,11 @@ export default function HistoryPage() {
           ) : (
             executions.map(execution => (
               <div key={execution.id} className="grid grid-cols-6 gap-4 py-4 hover:bg-muted/50">
-                <div>
-                  <input
-                    type="checkbox"
-                    className="rounded border-gray-300"
+                <div className="flex items-center">
+                  <Checkbox 
                     checked={selectedIds.includes(execution.id)}
                     onChange={() => handleSelectExecution(execution.id)}
+                    className="shadow-sm hover:shadow-md"
                   />
                 </div>
                 <div className="font-medium">{execution.task.name}</div>
@@ -380,6 +379,9 @@ export default function HistoryPage() {
                 </span>
               )}
             </DialogTitle>
+            <DialogDescription>
+              Détails et résultats de l'exécution de la tâche planifiée
+            </DialogDescription>
           </DialogHeader>
           
           {selectedExecution && (
