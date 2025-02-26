@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { z } from 'zod';
 import { authOptions } from '../auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
+import { taskScheduler } from '@/lib/services/scheduler';
 
 // Schéma de validation pour la création d'une tâche
 const taskSchema = z.object({
@@ -91,12 +92,37 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json();
-    const { id, ...data } = body;
-    const validatedData = taskSchema.parse(data);
+    const { id, isActive, execute, ...data } = body;
 
-    const task = await prisma.task.findUnique({
-      where: { id },
-    });
+    // Si c'est une demande d'exécution immédiate
+    if (execute) {
+      try {
+        const result = await taskScheduler.executeTaskNow(id);
+        return NextResponse.json(result);
+      } catch (error) {
+        return NextResponse.json({ 
+          message: error instanceof Error ? error.message : 'Erreur lors de l\'exécution',
+          success: false 
+        }, { status: 500 });
+      }
+    }
+
+    // Si c'est une demande d'activation/désactivation
+    if (typeof isActive === 'boolean') {
+      try {
+        const task = await taskScheduler.toggleTask(id, isActive);
+        return NextResponse.json(task);
+      } catch (error) {
+        return NextResponse.json({ 
+          message: error instanceof Error ? error.message : 'Erreur lors de la modification du statut',
+          success: false 
+        }, { status: 500 });
+      }
+    }
+
+    // Si c'est une mise à jour normale de la tâche
+    const validatedData = taskSchema.parse(data);
+    const task = await prisma.task.findUnique({ where: { id } });
 
     if (!task) {
       return NextResponse.json({ message: 'Tâche non trouvée' }, { status: 404 });
@@ -110,6 +136,9 @@ export async function PATCH(req: Request) {
       where: { id },
       data: validatedData,
     });
+
+    // Mettre à jour la planification
+    taskScheduler.scheduleTask(updatedTask);
 
     return NextResponse.json(updatedTask);
   } catch (error) {

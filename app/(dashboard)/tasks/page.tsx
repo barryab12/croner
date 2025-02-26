@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import TaskModal from '@/app/components/ui/task-modal';
 import DeleteTaskDialog from '@/app/components/ui/delete-task-dialog';
 import type { Task } from '@/types/prisma';
-import { Pencil1Icon, PlayIcon, TrashIcon } from "@radix-ui/react-icons";
+import { Pencil1Icon, PlayIcon, TrashIcon, SwitchIcon } from "@radix-ui/react-icons";
 
 export default function TasksPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -15,6 +15,7 @@ export default function TasksPage() {
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [executingTaskId, setExecutingTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTasks();
@@ -71,6 +72,56 @@ export default function TasksPage() {
     } catch (error) {
       setError('Une erreur est survenue lors de la suppression de la tâche');
       console.error(error);
+    }
+  }
+
+  async function handleToggleActive(task: Task) {
+    try {
+      const response = await fetch('/api/tasks', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: task.id,
+          isActive: !task.isActive,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la modification du statut');
+      }
+
+      await fetchTasks();
+    } catch (error) {
+      setError('Une erreur est survenue lors de la modification du statut');
+      console.error(error);
+    }
+  }
+
+  async function handleExecute(taskId: string) {
+    setExecutingTaskId(taskId);
+    try {
+      const response = await fetch('/api/tasks/execute', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ taskId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de l\'exécution de la tâche');
+      }
+
+      const result = await response.json();
+      // Rafraîchir la liste pour voir le nouveau statut
+      await fetchTasks();
+    } catch (error) {
+      setError('Une erreur est survenue lors de l\'exécution de la tâche');
+      console.error(error);
+    } finally {
+      setExecutingTaskId(null);
     }
   }
 
@@ -136,10 +187,21 @@ export default function TasksPage() {
                     <Pencil1Icon className="h-4 w-4" />
                   </button>
                   <button 
-                    className="rounded-md border p-1.5 hover:bg-muted"
-                    title="Exécuter"
+                    onClick={() => handleExecute(task.id)}
+                    disabled={executingTaskId === task.id}
+                    className="rounded-md border p-1.5 hover:bg-muted disabled:opacity-50"
+                    title="Exécuter maintenant"
                   >
                     <PlayIcon className="h-4 w-4" />
+                  </button>
+                  <button 
+                    onClick={() => handleToggleActive(task)}
+                    className={`rounded-md border p-1.5 hover:bg-muted ${
+                      task.isActive ? 'text-green-600' : 'text-red-600'
+                    }`}
+                    title={task.isActive ? "Désactiver" : "Activer"}
+                  >
+                    <SwitchIcon className="h-4 w-4" />
                   </button>
                   <button 
                     onClick={() => handleDeleteClick(task)}
