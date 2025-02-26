@@ -1,5 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent } from 'react';
 import type { Task } from '@/types/prisma';
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { toast } from "sonner"
+import { describeCronExpression, validateCronExpression } from "@/lib/utils"
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -18,15 +22,51 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
     time: '00:00',
     customSchedule: '',
   });
+  const [cronDescription, setCronDescription] = useState<string>('');
 
+  // Fonction pour obtenir l'expression cron basée sur le type de planification
+  const getCronExpression = (scheduleType: string, timeValue: string): string => {
+    const [hours, minutes] = timeValue.split(':');
+    switch (scheduleType) {
+      case 'daily':
+        return `${minutes} ${hours} * * *`;
+      case 'weekly':
+        return `${minutes} ${hours} * * 1`;
+      case 'monthly':
+        return `${minutes} ${hours} 1 * *`;
+      case 'custom':
+        return formData.customSchedule;
+      default:
+        return '';
+    }
+  };
+
+  // Mettre à jour la description quand le schedule ou l'heure change
+  const updateCronDescription = (schedule: string, timeValue: string) => {
+    if (schedule === 'custom') {
+      if (formData.customSchedule) {
+        const { description, isValid } = describeCronExpression(formData.customSchedule);
+        setCronDescription(description);
+        if (!isValid) {
+          toast.error("Expression cron invalide");
+        }
+      } else {
+        setCronDescription('');
+      }
+    } else {
+      const cronExp = getCronExpression(schedule, timeValue);
+      const { description } = describeCronExpression(cronExp);
+      setCronDescription(description);
+    }
+  };
+
+  // Premier useEffect pour initialiser le formulaire
   useEffect(() => {
     if (task && mode === 'edit') {
-      // Extraire l'heure de l'expression cron
       let time = '00:00';
       let schedule = 'custom';
       let customSchedule = task.schedule;
 
-      // Analyser l'expression cron pour définir le type et l'heure
       const cronParts = task.schedule.split(' ');
       if (cronParts.length === 5) {
         const [minutes, hours, dayMonth, month, dayWeek] = cronParts;
@@ -53,7 +93,25 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
     }
   }, [task, mode]);
 
-  if (!isOpen) return null;
+  // Deuxième useEffect pour mettre à jour la description
+  useEffect(() => {
+    updateCronDescription(formData.schedule, formData.time);
+  }, [formData.schedule, formData.time, formData.customSchedule]);
+
+  const handleScheduleChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const newSchedule = e.target.value;
+    setFormData(prev => ({ ...prev, schedule: newSchedule }));
+  };
+
+  const handleTimeChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const newTime = e.target.value;
+    setFormData(prev => ({ ...prev, time: newTime }));
+  };
+
+  const handleCustomScheduleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFormData(prev => ({ ...prev, customSchedule: value }));
+  };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -61,29 +119,24 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
     setError('');
 
     try {
-      // Construire l'expression cron selon le type de planification
-      let schedule = '';
-      const [hours, minutes] = formData.time.split(':');
-      
-      switch (formData.schedule) {
-        case 'daily':
-          schedule = `${minutes} ${hours} * * *`;
-          break;
-        case 'weekly':
-          schedule = `${minutes} ${hours} * * 1`;
-          break;
-        case 'monthly':
-          schedule = `${minutes} ${hours} 1 * *`;
-          break;
-        case 'custom':
-          schedule = formData.customSchedule;
-          break;
+      const cronExpression = getCronExpression(formData.schedule, formData.time);
+      if (!cronExpression) {
+        throw new Error('Expression cron invalide');
       }
 
       const method = mode === 'create' ? 'POST' : 'PATCH';
       const body = mode === 'create' 
-        ? { name: formData.name, command: formData.command, schedule }
-        : { id: task?.id, name: formData.name, command: formData.command, schedule };
+        ? { 
+            name: formData.name, 
+            command: formData.command, 
+            schedule: formData.schedule === 'custom' ? formData.customSchedule : cronExpression 
+          }
+        : { 
+            id: task?.id, 
+            name: formData.name, 
+            command: formData.command, 
+            schedule: formData.schedule === 'custom' ? formData.customSchedule : cronExpression 
+          };
 
       const response = await fetch('/api/tasks', {
         method,
@@ -99,7 +152,6 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
       }
 
       onClose();
-      // Recharger la page pour afficher les changements
       window.location.reload();
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Une erreur est survenue');
@@ -108,7 +160,9 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
     }
   }
 
-  return !isOpen ? null : (
+  if (!isOpen) return null;
+
+  return (
     <>
       <div className="fixed inset-0 z-50 bg-black/50" />
       <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto">
@@ -136,7 +190,7 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
                 className="w-full rounded-md border bg-background px-3 py-2"
                 placeholder="ex: Sauvegarde quotidienne"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                 required
               />
             </div>
@@ -148,7 +202,7 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
                 className="w-full rounded-md border bg-background px-3 py-2"
                 placeholder="ex: /usr/bin/backup.sh"
                 value={formData.command}
-                onChange={(e) => setFormData({ ...formData, command: e.target.value })}
+                onChange={(e) => setFormData(prev => ({ ...prev, command: e.target.value }))}
                 required
               />
             </div>
@@ -159,7 +213,7 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
                 <select
                   className="w-full rounded-md border bg-background px-3 py-2"
                   value={formData.schedule}
-                  onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
+                  onChange={handleScheduleChange}
                 >
                   <option value="daily">Quotidienne</option>
                   <option value="weekly">Hebdomadaire</option>
@@ -168,16 +222,18 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
                 </select>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Heure d'exécution</label>
-                <input
-                  type="time"
-                  className="w-full rounded-md border bg-background px-3 py-2"
-                  value={formData.time}
-                  onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                  required
-                />
-              </div>
+              {formData.schedule !== 'custom' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Heure d'exécution</label>
+                  <input
+                    type="time"
+                    className="w-full rounded-md border bg-background px-3 py-2"
+                    value={formData.time}
+                    onChange={handleTimeChange}
+                    required
+                  />
+                </div>
+              )}
             </div>
 
             {formData.schedule === 'custom' && (
@@ -188,10 +244,16 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
                   className="w-full rounded-md border bg-background px-3 py-2"
                   placeholder="ex: */5 * * * *"
                   value={formData.customSchedule}
-                  onChange={(e) => setFormData({ ...formData, customSchedule: e.target.value })}
-                  required={formData.schedule === 'custom'}
+                  onChange={handleCustomScheduleChange}
+                  required
                 />
               </div>
+            )}
+
+            {cronDescription && (
+              <p className="text-sm text-muted-foreground">
+                {cronDescription}
+              </p>
             )}
 
             <div className="flex justify-end space-x-2 pt-4">

@@ -1,6 +1,7 @@
 import { type Task } from "@prisma/client";
 import { scheduleJob, scheduledJobs, Job } from "node-schedule";
 import { executeTask, getActiveTasks, toggleTaskInDatabase, updateTaskNextRun } from "@/lib/server-actions/tasks";
+import { validateCronExpression } from '../utils';
 
 class TaskScheduler {
   private jobs: Map<string, Job>;
@@ -25,9 +26,15 @@ class TaskScheduler {
       this.jobs.delete(task.id);
     }
 
+    // Valider l'expression cron
+    if (!validateCronExpression(task.schedule)) {
+      console.error(`Expression cron invalide pour la tâche ${task.id}: ${task.schedule}`);
+      return null;
+    }
+
     // Convertir le format cron 6 champs en 5 champs si nécessaire
     const cronSchedule = task.schedule.split(' ').length === 6 
-      ? task.schedule.split(' ').slice(0, 5).join(' ') 
+      ? task.schedule.split(' ').slice(1).join(' ') 
       : task.schedule;
 
     const job = scheduleJob(task.id, cronSchedule, async () => {
