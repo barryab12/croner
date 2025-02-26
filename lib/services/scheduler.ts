@@ -1,5 +1,6 @@
 import { type Task } from "@prisma/client";
 import { scheduleJob, scheduledJobs, Job } from "node-schedule";
+import { prisma } from "@/lib/prisma";
 
 class TaskScheduler {
   private jobs: Map<string, Job>;
@@ -65,20 +66,13 @@ class TaskScheduler {
 
   async toggleTask(taskId: string, isActive: boolean) {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ isActive }),
+      // Mettre à jour directement dans la base de données au lieu d'appeler l'API
+      const task = await prisma.task.update({
+        where: { id: taskId },
+        data: { isActive },
       });
 
-      if (!response.ok) {
-        throw new Error('Échec de la modification du statut de la tâche');
-      }
-
-      const task = await response.json();
-
+      // Planifier ou annuler la tâche selon le nouvel état
       if (isActive) {
         this.scheduleTask(task);
       } else {

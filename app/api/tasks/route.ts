@@ -110,9 +110,20 @@ export async function PATCH(req: Request) {
     // Si c'est une demande d'activation/désactivation
     if (typeof isActive === 'boolean') {
       try {
-        const task = await taskScheduler.toggleTask(id, isActive);
-        return NextResponse.json(task);
+        // Vérifier les permissions d'utilisateur avant de permettre la modification
+        const task = await prisma.task.findUnique({ where: { id } });
+        if (!task) {
+          return NextResponse.json({ message: 'Tâche non trouvée' }, { status: 404 });
+        }
+        if (task.userId !== session.user.id) {
+          return NextResponse.json({ message: 'Non autorisé' }, { status: 403 });
+        }
+        
+        // Appeler la méthode toggleTask du scheduler qui accède maintenant directement à la base de données
+        const updatedTask = await taskScheduler.toggleTask(id, isActive);
+        return NextResponse.json(updatedTask);
       } catch (error) {
+        console.error('Erreur lors de la modification du statut:', error);
         return NextResponse.json({ 
           message: error instanceof Error ? error.message : 'Erreur lors de la modification du statut',
           success: false 
