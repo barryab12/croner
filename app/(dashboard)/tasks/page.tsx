@@ -5,6 +5,7 @@ import TaskModal from '@/app/components/ui/task-modal';
 import DeleteTaskDialog from '@/app/components/ui/delete-task-dialog';
 import type { Task } from '@/types/prisma';
 import { Pencil1Icon, PlayIcon, TrashIcon, SwitchIcon } from "@radix-ui/react-icons";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
 
 export default function TasksPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -129,12 +130,12 @@ export default function TasksPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Tâches Cron</h1>
-        <button 
-          onClick={handleCreate}
-          className="rounded-md bg-primary px-4 py-2 text-white hover:bg-primary/90"
-        >
-          Nouvelle Tâche
-        </button>
+            <button 
+              onClick={handleCreate}
+              className="rounded-md bg-primary px-4 py-2 text-white hover:bg-primary/90"
+            >
+              Nouvelle Tâche
+            </button>
       </div>
 
       {error && (
@@ -179,37 +180,64 @@ export default function TasksPage() {
                   {task.nextRun ? new Date(task.nextRun).toLocaleString() : 'Non planifié'}
                 </div>
                 <div className="flex items-center gap-1">
-                  <button 
-                    onClick={() => handleEdit(task)}
-                    className="rounded-md border p-1.5 hover:bg-muted"
-                    title="Éditer"
-                  >
-                    <Pencil1Icon className="h-4 w-4" />
-                  </button>
-                  <button 
-                    onClick={() => handleExecute(task.id)}
-                    disabled={executingTaskId === task.id}
-                    className="rounded-md border p-1.5 hover:bg-muted disabled:opacity-50"
-                    title="Exécuter maintenant"
-                  >
-                    <PlayIcon className="h-4 w-4" />
-                  </button>
-                  <button 
-                    onClick={() => handleToggleActive(task)}
-                    className={`rounded-md border p-1.5 hover:bg-muted ${
-                      task.isActive ? 'text-green-600' : 'text-red-600'
-                    }`}
-                    title={task.isActive ? "Désactiver" : "Activer"}
-                  >
-                    <SwitchIcon className="h-4 w-4" />
-                  </button>
-                  <button 
-                    onClick={() => handleDeleteClick(task)}
-                    className="rounded-md border border-red-200 p-1.5 text-red-600 hover:bg-red-50"
-                    title="Supprimer"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                  </button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button 
+                        onClick={() => handleEdit(task)}
+                        className="rounded-md border p-1.5 hover:bg-muted"
+                      >
+                        <Pencil1Icon className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Éditer la tâche</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button 
+                        onClick={() => handleExecute(task.id)}
+                        disabled={executingTaskId === task.id}
+                        className="rounded-md border p-1.5 hover:bg-muted disabled:opacity-50"
+                      >
+                        <PlayIcon className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Exécuter maintenant la tâche</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button 
+                        onClick={() => handleToggleActive(task)}
+                        className={`rounded-md border p-1.5 hover:bg-muted ${
+                          task.isActive ? 'text-green-600' : 'text-red-600'
+                        }`}
+                      >
+                        <SwitchIcon className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{task.isActive ? "Désactiver la tâche" : "Activer la tâche"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button 
+                        onClick={() => handleDeleteClick(task)}
+                        className="rounded-md border border-red-200 p-1.5 text-red-600 hover:bg-red-50"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Supprimer la tâche</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             ))
