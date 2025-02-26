@@ -19,15 +19,12 @@ export async function POST(req: Request) {
     if (!session) {
       return NextResponse.json({ message: 'Non autorisé - Session non trouvée' }, { status: 401 });
     }
-
     if (!session.user?.id) {
       return NextResponse.json({ message: 'Non autorisé - ID utilisateur manquant' }, { status: 401 });
     }
-
     const body = await req.json();
-
     const validatedData = taskSchema.parse(body);
-
+    
     const task = await prisma.task.create({
       data: {
         name: validatedData.name,
@@ -40,7 +37,7 @@ export async function POST(req: Request) {
     if (!task) {
       throw new Error('Échec de la création de la tâche');
     }
-
+    
     // Planifier la tâche immédiatement après sa création
     const nextRunStr = taskScheduler.scheduleTask(task);
     if (nextRunStr) {
@@ -49,12 +46,11 @@ export async function POST(req: Request) {
         data: { nextRun: new Date(nextRunStr) }
       });
     }
-
     // Récupérer la tâche mise à jour avec nextRun
     const updatedTask = await prisma.task.findUnique({
       where: { id: task.id }
     });
-
+    
     // Sérialiser les dates
     const serializedTask = {
       ...updatedTask,
@@ -63,7 +59,7 @@ export async function POST(req: Request) {
       createdAt: updatedTask?.createdAt.toISOString(),
       updatedAt: updatedTask?.updatedAt.toISOString(),
     };
-
+    
     return NextResponse.json(serializedTask);
   } catch (error) {
     console.error('Erreur lors de la création de la tâche:', error);
@@ -71,7 +67,6 @@ export async function POST(req: Request) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ errors: error.errors }, { status: 400 });
     }
-
     return NextResponse.json({ 
       message: error instanceof Error ? error.message : 'Erreur interne du serveur',
       details: error instanceof Error ? error.stack : undefined
@@ -95,7 +90,7 @@ export async function GET(req: Request) {
         createdAt: 'desc',
       },
     });
-
+    
     // Sérialiser les dates en chaînes ISO
     const serializedTasks = tasks.map(task => ({
       ...task,
@@ -104,7 +99,7 @@ export async function GET(req: Request) {
       createdAt: task.createdAt.toISOString(),
       updatedAt: task.updatedAt.toISOString(),
     }));
-
+    
     return NextResponse.json(serializedTasks);
   } catch (error) {
     console.error('Erreur détaillée:', error);
@@ -122,10 +117,10 @@ export async function PATCH(req: Request) {
     if (!session?.user) {
       return NextResponse.json({ message: 'Non autorisé' }, { status: 401 });
     }
-
     const body = await req.json();
+    
     const { id, isActive, execute, ...data } = body;
-
+    
     // Si c'est une demande d'exécution immédiate
     if (execute) {
       try {
@@ -138,103 +133,87 @@ export async function PATCH(req: Request) {
         }, { status: 500 });
       }
     }
-
-    // Si c'est une demande d'activation/désactivation
-    if (typeof isActive === 'boolean') {
-      try {
-        // Vérifier les permissions d'utilisateur
-        const task = await prisma.task.findUnique({ where: { id } });
-        if (!task) {
-          return NextResponse.json({ message: 'Tâche non trouvée' }, { status: 404 });
-        }
-        if (task.userId !== session.user.id) {
-          return NextResponse.json({ message: 'Non autorisé' }, { status: 403 });
-        }
-
-        // Mise à jour initiale de l'état actif
-        const updatedTask = await prisma.task.update({
-          where: { id },
-          data: { 
-            isActive,
-            // Si on désactive la tâche, on met nextRun à null
-            ...(isActive ? {} : { nextRun: null })
-          }
-        });
-
-        // Si la tâche est activée, calculer et mettre à jour nextRun
-        if (isActive) {
-          const nextRunStr = taskScheduler.scheduleTask(updatedTask);
-          if (nextRunStr) {
-            await prisma.task.update({
-              where: { id },
-              data: { nextRun: new Date(nextRunStr) }
-            });
-          }
-        } else {
-          taskScheduler.cancelTask(id);
-        }
-
-        // Récupérer l'état final de la tâche
-        const finalTask = await prisma.task.findUnique({ where: { id } });
-        
-        return NextResponse.json({
-          ...finalTask,
-          nextRun: finalTask?.nextRun?.toISOString() || null,
-          lastRun: finalTask?.lastRun?.toISOString() || null,
-          createdAt: finalTask?.createdAt.toISOString(),
-          updatedAt: finalTask?.updatedAt.toISOString(),
-        });
-      } catch (error) {
-        console.error('Erreur lors de la modification du statut:', error);
-        return NextResponse.json({ 
-          message: error instanceof Error ? error.message : 'Erreur lors de la modification du statut',
-          success: false 
-        }, { status: 500 });
-      }
-    }
-
-    // Si c'est une mise à jour normale
-    const validatedData = taskSchema.parse(data);
+    
+    // Vérification initiale de la tâche et des autorisations (commun à tous les types de mise à jour)
     const task = await prisma.task.findUnique({ where: { id } });
-
     if (!task) {
       return NextResponse.json({ message: 'Tâche non trouvée' }, { status: 404 });
     }
-
+    
     if (task.userId !== session.user.id) {
       return NextResponse.json({ message: 'Non autorisé' }, { status: 403 });
     }
 
+    // Préparer les données à mettre à jour
+    let updateData: any = {};
+    
+    // Traiter les mises à jour du champ schedule ou des autres champs
+    if (data && Object.keys(data).length > 0) {
+      try {
+        // Valider les données avec le schéma
+        const validatedData = taskSchema.parse(data);
+        
+        // Ajouter les données validées
+        updateData = { ...validatedData };
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          return NextResponse.json({ errors: error.errors }, { status: 400 });
+        }
+        throw error;
+      }
+    }
+    
+    // Si c'est une demande de changement d'état actif, ajouter à updateData
+    if (typeof isActive === 'boolean') {
+      updateData.isActive = isActive;
+      
+      // Si on désactive la tâche, mettre nextRun à null
+      if (!isActive) {
+        updateData.nextRun = null;
+      }
+    }
+    
+    // Effectuer la mise à jour en base de données
     const updatedTask = await prisma.task.update({
       where: { id },
-      data: validatedData,
+      data: updateData,
     });
-
-    // Replanifier la tâche si elle est active
+    
+    // Gérer la planification
     if (updatedTask.isActive) {
+      // Annuler l'ancienne planification
+      taskScheduler.cancelTask(id);
+      
+      // Planifier avec la nouvelle configuration
       const nextRunStr = taskScheduler.scheduleTask(updatedTask);
+      
       if (nextRunStr) {
         await prisma.task.update({
           where: { id },
           data: { nextRun: new Date(nextRunStr) }
         });
       }
+    } else {
+      // Si la tâche est désactivée, annuler la planification
+      taskScheduler.cancelTask(id);
     }
-
+    
     // Récupérer l'état final
     const finalTask = await prisma.task.findUnique({ where: { id } });
     
-    return NextResponse.json({
+    // Construire la réponse
+    const response = {
       ...finalTask,
       nextRun: finalTask?.nextRun?.toISOString() || null,
       lastRun: finalTask?.lastRun?.toISOString() || null,
       createdAt: finalTask?.createdAt.toISOString(),
       updatedAt: finalTask?.updatedAt.toISOString(),
-    });
+    };
+    
+    return NextResponse.json(response);
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ errors: error.errors }, { status: 400 });
-    }
+    console.error('Erreur détaillée lors de la mise à jour:', error);
+    
     return NextResponse.json({ message: 'Erreur interne du serveur' }, { status: 500 });
   }
 }
@@ -246,32 +225,35 @@ export async function DELETE(req: Request) {
     if (!session?.user) {
       return NextResponse.json({ message: 'Non autorisé' }, { status: 401 });
     }
-
     const { searchParams } = new URL(req.url);
     const taskId = searchParams.get('id');
-
+    
     if (!taskId) {
       return NextResponse.json({ message: 'ID de tâche requis' }, { status: 400 });
     }
-
+    
     const task = await prisma.task.findUnique({
       where: { id: taskId },
     });
-
+    
     if (!task) {
       return NextResponse.json({ message: 'Tâche non trouvée' }, { status: 404 });
     }
-
+    
     if (task.userId !== session.user.id) {
       return NextResponse.json({ message: 'Non autorisé' }, { status: 403 });
     }
-
+    
+    // Annuler la planification avant de supprimer
+    taskScheduler.cancelTask(taskId);
+    
     await prisma.task.delete({
       where: { id: taskId },
     });
-
+    
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error('Erreur lors de la suppression:', error);
     return NextResponse.json({ message: 'Erreur interne du serveur' }, { status: 500 });
   }
 }

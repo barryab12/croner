@@ -25,7 +25,7 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
   const [cronDescription, setCronDescription] = useState<string>('');
 
   // Fonction pour obtenir l'expression cron basée sur le type de planification
-  const getCronExpression = (scheduleType: string, timeValue: string): string => {
+  const getCronExpression = (scheduleType: string, timeValue: string, customValue?: string): string => {
     const [hours, minutes] = timeValue.split(':');
     switch (scheduleType) {
       case 'daily':
@@ -35,7 +35,7 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
       case 'monthly':
         return `${minutes} ${hours} 1 * *`;
       case 'custom':
-        return formData.customSchedule;
+        return customValue || '';
       default:
         return '';
     }
@@ -67,22 +67,46 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
       let schedule = 'custom';
       let customSchedule = task.schedule;
 
+      // Vérifier si la tâche correspond à un des schémas prédéfinis
       const cronParts = task.schedule.split(' ');
       if (cronParts.length === 5) {
         const [minutes, hours, dayMonth, month, dayWeek] = cronParts;
         
+        // Vérifier les motifs connus pour les associer aux types de planification prédéfinis
         if (dayMonth === '*' && month === '*' && dayWeek === '*') {
           schedule = 'daily';
-          time = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+          
+          // Gestion correcte des heures et minutes potentiellement avec */n
+          if (!hours.includes('*') && !minutes.includes('*')) {
+            // Format standard HH:MM
+            time = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+            customSchedule = '';
+          } else {
+            // Format non standard, garder comme personnalisé
+            schedule = 'custom';
+          }
         } else if (dayMonth === '*' && month === '*' && dayWeek === '1') {
           schedule = 'weekly';
-          time = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+          
+          if (!hours.includes('*') && !minutes.includes('*')) {
+            time = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+            customSchedule = '';
+          } else {
+            schedule = 'custom';
+          }
         } else if (dayMonth === '1' && month === '*' && dayWeek === '*') {
           schedule = 'monthly';
-          time = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+          
+          if (!hours.includes('*') && !minutes.includes('*')) {
+            time = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+            customSchedule = '';
+          } else {
+            schedule = 'custom';
+          }
         }
       }
 
+      // Mettre à jour l'état du formulaire avec les valeurs initiales
       setFormData({
         name: task.name,
         command: task.command,
@@ -119,8 +143,21 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
     setError('');
 
     try {
-      const cronExpression = getCronExpression(formData.schedule, formData.time);
-      if (!cronExpression) {
+      // Utiliser le customSchedule si on est en mode custom, sinon générer l'expression depuis les paramètres
+      let finalCronExpression = '';
+      if (formData.schedule === 'custom') {
+        finalCronExpression = formData.customSchedule;
+      } else {
+        finalCronExpression = getCronExpression(formData.schedule, formData.time);
+      }
+      
+      if (!finalCronExpression) {
+        throw new Error('Expression cron invalide');
+      }
+
+      // Valider l'expression cron
+      const isValid = validateCronExpression(finalCronExpression);
+      if (!isValid) {
         throw new Error('Expression cron invalide');
       }
 
@@ -129,14 +166,14 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
         ? { 
             name: formData.name, 
             command: formData.command, 
-            schedule: formData.schedule === 'custom' ? formData.customSchedule : cronExpression 
+            schedule: finalCronExpression
           }
         : { 
             id: task?.id, 
             name: formData.name, 
             command: formData.command,
             isActive: task?.isActive,
-            schedule: formData.schedule === 'custom' ? formData.customSchedule : cronExpression 
+            schedule: finalCronExpression
           };
 
       const response = await fetch('/api/tasks', {
@@ -148,12 +185,22 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Une erreur est survenue');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Une erreur est survenue');
       }
 
+      // Récupérer la tâche mise à jour
+      await response.json();
+      
+      toast.success(mode === 'create' ? 'Tâche créée avec succès' : 'Tâche modifiée avec succès');
+      
+      // Fermer le modal et forcer un rafraîchissement complet de la page
       onClose();
-      window.location.reload();
+      
+      // Recharger la page après un court délai pour s'assurer que les modifications sont visibles
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Une erreur est survenue');
     } finally {
