@@ -12,10 +12,16 @@ export async function executeTask(taskId: string) {
   if (!task) throw new Error('Task not found');
 
   const startTime = new Date();
+  let endTime: Date;
+  let duration: number;
 
   try {
     const { stdout, stderr } = await execa(task.command, { shell: true });
+    
+    endTime = new Date();
+    duration = endTime.getTime() - startTime.getTime();
 
+    // Mettre à jour la tâche avec les informations de la dernière exécution
     await prisma.task.update({
       where: { id: taskId },
       data: {
@@ -25,14 +31,42 @@ export async function executeTask(taskId: string) {
       }
     });
 
-    return { success: true, output: stdout };
+    // Créer un enregistrement dans l'historique des exécutions
+    const execution = await prisma.taskExecution.create({
+      data: {
+        taskId,
+        startTime,
+        endTime,
+        duration,
+        status: 'SUCCESS',
+        output: stdout,
+      }
+    });
+
+    return { success: true, output: stdout, executionId: execution.id };
   } catch (error) {
+    endTime = new Date();
+    duration = endTime.getTime() - startTime.getTime();
+
+    // Mettre à jour la tâche avec les informations de la dernière exécution
     await prisma.task.update({
       where: { id: taskId },
       data: {
         lastRun: startTime,
         lastStatus: 'error',
         nextRun: taskScheduler.getNextRun(taskId)
+      }
+    });
+
+    // Créer un enregistrement dans l'historique des exécutions
+    await prisma.taskExecution.create({
+      data: {
+        taskId,
+        startTime,
+        endTime,
+        duration,
+        status: 'ERROR',
+        error: error instanceof Error ? error.message : String(error),
       }
     });
 

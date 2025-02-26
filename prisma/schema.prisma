@@ -23,6 +23,7 @@ model Task {
   updatedAt     DateTime  @updatedAt
   userId        String    // Foreign key vers User
   user          User      @relation(fields: [userId], references: [id])
+  executions    TaskExecution[]  // Relation avec l'historique des exécutions
 }
 
 model User {
@@ -36,6 +37,25 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   tasks         Task[]    // Ajout de la relation avec Task
+}
+
+model TaskExecution {
+  id          String    @id @default(cuid())
+  taskId      String    // Foreign key vers Task
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  startTime   DateTime  @default(now())
+  endTime     DateTime?
+  duration    Int?      // Durée en millisecondes
+  status      ExecutionStatus
+  output      String?   // Sortie de la commande
+  error       String?   // Message d'erreur en cas d'échec
+  createdAt   DateTime  @default(now())
+}
+
+enum ExecutionStatus {
+  SUCCESS
+  ERROR
+  TIMEOUT
 }
 
 enum Role {
