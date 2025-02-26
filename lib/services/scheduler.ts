@@ -1,63 +1,79 @@
 import { type Task } from "@prisma/client";
 import { scheduleJob, scheduledJobs, Job } from "node-schedule";
-import { prisma } from "@/lib/prisma";
+import { executeTask, getActiveTasks, toggleTaskInDatabase, updateTaskNextRun } from "@/lib/server-actions/tasks";
 
 class TaskScheduler {
   private jobs: Map<string, Job>;
+  private static instance: TaskScheduler;
 
-  constructor() {
+  private constructor() {
     this.jobs = new Map();
   }
 
+  static getInstance() {
+    if (!TaskScheduler.instance) {
+      TaskScheduler.instance = new TaskScheduler();
+    }
+    return TaskScheduler.instance;
+  }
+
   scheduleTask(task: Task) {
+    console.log(`Planification de la tâche ${task.id} avec le schedule: ${task.schedule}`);
     if (this.jobs.has(task.id)) {
+      console.log(`Annulation de l'ancienne planification pour la tâche ${task.id}`);
       this.jobs.get(task.id)?.cancel();
+      this.jobs.delete(task.id);
     }
 
-    const job = scheduleJob(task.schedule, async () => {
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/execute`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ taskId: task.id }),
-        });
+    // Convertir le format cron 6 champs en 5 champs si nécessaire
+    const cronSchedule = task.schedule.split(' ').length === 6 
+      ? task.schedule.split(' ').slice(0, 5).join(' ') 
+      : task.schedule;
 
-        if (!response.ok) {
-          throw new Error('Échec de l\'exécution de la tâche');
-        }
+    const job = scheduleJob(task.id, cronSchedule, async () => {
+      console.log(`Exécution de la tâche ${task.id} à ${new Date().toISOString()}`);
+      try {
+        const result = await executeTask(task.id);
+        console.log(`Tâche ${task.id} exécutée avec succès`);
       } catch (error) {
         console.error(`Erreur lors de l'exécution de la tâche ${task.id}:`, error);
       }
     });
 
+    if (!job) {
+      console.error(`Échec de la planification de la tâche ${task.id}: format cron invalide`);
+      return null;
+    }
+
     this.jobs.set(task.id, job);
+    const nextRun = job.nextInvocation();
     
-    // Return the next execution date
-    return job.nextInvocation();
+    // Convertir la date en format ISO 
+    if (nextRun) {
+      this.updateNextRun(task.id, nextRun.toISOString());
+    }
+    
+    console.log(`Prochaine exécution de la tâche ${task.id}: ${nextRun}`);
+    return nextRun ? nextRun.toISOString() : null;
+  }
+
+  private async updateNextRun(taskId: string, nextRun: string) {
+    try {
+      await updateTaskNextRun(taskId, nextRun);
+    } catch (error) {
+      console.error(`Erreur lors de la mise à jour de nextRun pour la tâche ${taskId}:`, error);
+    }
   }
 
   getNextRun(taskId: string) {
     const job = this.jobs.get(taskId);
-    return job ? job.nextInvocation() : null;
+    const nextRun = job ? job.nextInvocation() : null;
+    return nextRun ? nextRun.toISOString() : null;
   }
 
   async executeTaskNow(taskId: string) {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/execute`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ taskId }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Échec de l\'exécution de la tâche');
-      }
-
-      return await response.json();
+      return await executeTask(taskId);
     } catch (error) {
       console.error(`Erreur lors de l'exécution manuelle de la tâche ${taskId}:`, error);
       throw error;
@@ -66,11 +82,8 @@ class TaskScheduler {
 
   async toggleTask(taskId: string, isActive: boolean) {
     try {
-      // Mettre à jour directement dans la base de données au lieu d'appeler l'API
-      const task = await prisma.task.update({
-        where: { id: taskId },
-        data: { isActive },
-      });
+      // Mettre à jour la base de données via la Server Action
+      const task = await toggleTaskInDatabase(taskId, isActive);
 
       // Planifier ou annuler la tâche selon le nouvel état
       if (isActive) {
@@ -96,25 +109,29 @@ class TaskScheduler {
 
   async start() {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tasks/active`);
-      if (!response.ok) {
-        throw new Error('Échec de la récupération des tâches actives');
-      }
+      console.log('Démarrage du scheduler...');
+      const tasks = await getActiveTasks();
       
-      const tasks = await response.json();
+      console.log(`${tasks.length} tâches actives récupérées`);
       
       tasks.forEach((task: Task) => {
         this.scheduleTask(task);
       });
+      console.log('Scheduler démarré avec succès');
     } catch (error) {
       console.error('Erreur lors du démarrage du scheduler:', error);
     }
   }
 
   stop() {
-    this.jobs.forEach(job => job.cancel());
+    console.log('Arrêt du scheduler...');
+    this.jobs.forEach((job, id) => {
+      console.log(`Annulation de la tâche ${id}`);
+      job.cancel();
+    });
     this.jobs.clear();
   }
 }
 
-export const taskScheduler = new TaskScheduler();
+// Exporter une instance unique du scheduler
+export const taskScheduler = TaskScheduler.getInstance();

@@ -1,25 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { taskScheduler } from '@/lib/services/scheduler';
+import { taskScheduler } from "@/lib/services/scheduler";
+import { useEffect } from "react";
 
-export default function SchedulerProvider({ children }: { children: React.ReactNode }) {
-  const [isInitialized, setIsInitialized] = useState(false);
-
+export function SchedulerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const initializeScheduler = async () => {
-      if (!isInitialized) {
-        await taskScheduler.start();
-        setIsInitialized(true);
-      }
+      console.log('Initialisation du scheduler...');
+      await taskScheduler.start();
     };
 
     initializeScheduler();
 
+    // Nettoyage lors du démontage du composant
     return () => {
+      console.log('Nettoyage du scheduler...');
       taskScheduler.stop();
     };
-  }, [isInitialized]);
+  }, []); // Une seule fois au montage
 
   return <>{children}</>;
 }

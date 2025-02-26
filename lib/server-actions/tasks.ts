@@ -21,13 +21,16 @@ export async function executeTask(taskId: string) {
     endTime = new Date();
     duration = endTime.getTime() - startTime.getTime();
 
+    // Récupérer la chaîne ISO de la prochaine exécution
+    const nextRunStr = taskScheduler.getNextRun(taskId);
+
     // Mettre à jour la tâche avec les informations de la dernière exécution
-    await prisma.task.update({
+    const updatedTask = await prisma.task.update({
       where: { id: taskId },
       data: {
         lastRun: startTime,
         lastStatus: 'success',
-        nextRun: taskScheduler.getNextRun(taskId)
+        nextRun: nextRunStr ? new Date(nextRunStr) : null
       }
     });
 
@@ -43,23 +46,38 @@ export async function executeTask(taskId: string) {
       }
     });
 
-    return { success: true, output: stdout, executionId: execution.id };
+    // Sérialiser les dates dans le résultat
+    return { 
+      success: true, 
+      output: stdout, 
+      executionId: execution.id,
+      task: {
+        ...updatedTask,
+        nextRun: updatedTask.nextRun?.toISOString() || null,
+        lastRun: updatedTask.lastRun?.toISOString() || null,
+        createdAt: updatedTask.createdAt.toISOString(),
+        updatedAt: updatedTask.updatedAt.toISOString(),
+      }
+    };
   } catch (error) {
     endTime = new Date();
     duration = endTime.getTime() - startTime.getTime();
 
+    // Récupérer la chaîne ISO de la prochaine exécution
+    const nextRunStr = taskScheduler.getNextRun(taskId);
+
     // Mettre à jour la tâche avec les informations de la dernière exécution
-    await prisma.task.update({
+    const updatedTask = await prisma.task.update({
       where: { id: taskId },
       data: {
         lastRun: startTime,
         lastStatus: 'error',
-        nextRun: taskScheduler.getNextRun(taskId)
+        nextRun: nextRunStr ? new Date(nextRunStr) : null
       }
     });
 
     // Créer un enregistrement dans l'historique des exécutions
-    await prisma.taskExecution.create({
+    const execution = await prisma.taskExecution.create({
       data: {
         taskId,
         startTime,
@@ -74,6 +92,26 @@ export async function executeTask(taskId: string) {
   }
 }
 
+export async function toggleTaskInDatabase(taskId: string, isActive: boolean) {
+  const task = await prisma.task.update({
+    where: { id: taskId },
+    data: { isActive },
+  });
+  return task;
+}
+
+export async function updateTaskNextRun(taskId: string, nextRun: string) {
+  try {
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { nextRun: new Date(nextRun) },
+    });
+  } catch (error) {
+    console.error(`Erreur lors de la mise à jour de nextRun pour la tâche ${taskId}:`, error);
+    throw error;
+  }
+}
+
 export async function toggleTaskStatus(taskId: string, active: boolean) {
   const task = await prisma.task.update({
     where: { id: taskId },
@@ -81,11 +119,13 @@ export async function toggleTaskStatus(taskId: string, active: boolean) {
   });
 
   if (active) {
-    const nextRun = taskScheduler.scheduleTask(task);
-    await prisma.task.update({
-      where: { id: taskId },
-      data: { nextRun }
-    });
+    const nextRunStr = taskScheduler.scheduleTask(task);
+    if (nextRunStr) {
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { nextRun: new Date(nextRunStr) }
+      });
+    }
   } else {
     taskScheduler.cancelTask(taskId);
   }
@@ -99,10 +139,24 @@ export async function initializeScheduler() {
   });
   
   for (const task of tasks) {
-    const nextRun = taskScheduler.scheduleTask(task);
-    await prisma.task.update({
-      where: { id: task.id },
-      data: { nextRun }
+    const nextRunStr = taskScheduler.scheduleTask(task);
+    if (nextRunStr) {
+      await prisma.task.update({
+        where: { id: task.id },
+        data: { nextRun: new Date(nextRunStr) }
+      });
+    }
+  }
+}
+
+export async function getActiveTasks() {
+  try {
+    const tasks = await prisma.task.findMany({
+      where: { isActive: true }
     });
+    return tasks;
+  } catch (error) {
+    console.error('Erreur lors de la récupération des tâches actives:', error);
+    throw error;
   }
 }

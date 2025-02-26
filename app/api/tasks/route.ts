@@ -41,7 +41,16 @@ export async function POST(req: Request) {
       throw new Error('Échec de la création de la tâche');
     }
 
-    return NextResponse.json(task);
+    // Sérialiser les dates
+    const serializedTask = {
+      ...task,
+      nextRun: task.nextRun?.toISOString() || null,
+      lastRun: task.lastRun?.toISOString() || null,
+      createdAt: task.createdAt.toISOString(),
+      updatedAt: task.updatedAt.toISOString(),
+    };
+
+    return NextResponse.json(serializedTask);
   } catch (error) {
     console.error('Erreur lors de la création de la tâche:', error);
     
@@ -73,7 +82,16 @@ export async function GET(req: Request) {
       },
     });
 
-    return NextResponse.json(tasks);
+    // Sérialiser les dates en chaînes ISO
+    const serializedTasks = tasks.map(task => ({
+      ...task,
+      nextRun: task.nextRun?.toISOString() || null,
+      lastRun: task.lastRun?.toISOString() || null,
+      createdAt: task.createdAt.toISOString(),
+      updatedAt: task.updatedAt.toISOString(),
+    }));
+
+    return NextResponse.json(serializedTasks);
   } catch (error) {
     console.error('Erreur détaillée:', error);
     return NextResponse.json({ 
@@ -121,7 +139,15 @@ export async function PATCH(req: Request) {
         
         // Appeler la méthode toggleTask du scheduler qui accède maintenant directement à la base de données
         const updatedTask = await taskScheduler.toggleTask(id, isActive);
-        return NextResponse.json(updatedTask);
+        // Sérialiser les dates
+        const serializedTask = {
+          ...updatedTask,
+          nextRun: updatedTask.nextRun?.toISOString() || null,
+          lastRun: updatedTask.lastRun?.toISOString() || null,
+          createdAt: updatedTask.createdAt.toISOString(),
+          updatedAt: updatedTask.updatedAt.toISOString(),
+        };
+        return NextResponse.json(serializedTask);
       } catch (error) {
         console.error('Erreur lors de la modification du statut:', error);
         return NextResponse.json({ 
@@ -151,7 +177,16 @@ export async function PATCH(req: Request) {
     // Mettre à jour la planification
     taskScheduler.scheduleTask(updatedTask);
 
-    return NextResponse.json(updatedTask);
+    // Sérialiser les dates
+    const serializedTask = {
+      ...updatedTask,
+      nextRun: updatedTask.nextRun?.toISOString() || null,
+      lastRun: updatedTask.lastRun?.toISOString() || null,
+      createdAt: updatedTask.createdAt.toISOString(),
+      updatedAt: updatedTask.updatedAt.toISOString(),
+    };
+
+    return NextResponse.json(serializedTask);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ errors: error.errors }, { status: 400 });
