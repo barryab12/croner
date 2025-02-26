@@ -147,8 +147,40 @@ export default function TasksPage() {
     }
   }
 
+  // Calcul des statistiques pour le tableau de bord
+  const stats = {
+    total: tasks.length,
+    active: tasks.filter(task => task.isActive).length,
+    success: tasks.filter(task => task.lastStatus === 'success').length,
+    error: tasks.filter(task => task.lastStatus === 'error').length,
+    pending: tasks.filter(task => !task.lastStatus).length
+  };
+
   return (
     <div className="space-y-6">
+      {/* Dashboard */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-lg border bg-card p-4">
+          <div className="text-sm font-medium text-muted-foreground">Total des tâches</div>
+          <div className="mt-2 text-2xl font-bold">{stats.total}</div>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <div className="text-sm font-medium text-muted-foreground">Tâches actives</div>
+          <div className="mt-2 text-2xl font-bold text-green-600">{stats.active}</div>
+          <div className="text-xs text-muted-foreground">{((stats.active / stats.total) * 100 || 0).toFixed(0)}% du total</div>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <div className="text-sm font-medium text-muted-foreground">Dernières exécutions réussies</div>
+          <div className="mt-2 text-2xl font-bold text-green-600">{stats.success}</div>
+          <div className="text-xs text-muted-foreground">{((stats.success / (stats.success + stats.error || 1)) * 100).toFixed(0)}% de succès</div>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <div className="text-sm font-medium text-muted-foreground">Dernières exécutions échouées</div>
+          <div className="mt-2 text-2xl font-bold text-red-600">{stats.error}</div>
+          <div className="text-xs text-muted-foreground">{stats.pending} tâches en attente</div>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Tâches Cron</h1>
             <button 
@@ -167,15 +199,6 @@ export default function TasksPage() {
 
       <div className="rounded-lg border bg-card">
         <div className="p-4">
-          <div className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr_2fr] gap-4 border-b pb-4 font-medium">
-            <div>Nom</div>
-            <div>Commande</div>
-            <div>Planification</div>
-            <div>Dernier statut</div>
-            <div>Prochaine exécution</div>
-            <div>Actions</div>
-          </div>
-          
           {isLoading ? (
             <div className="py-8 text-center text-muted-foreground">
               Chargement des tâches...
@@ -185,83 +208,117 @@ export default function TasksPage() {
               Aucune tâche configurée
             </div>
           ) : (
-            tasks.map((task) => (
-              <div key={task.id} className="grid grid-cols-[2fr_2fr_1fr_1fr_1fr_2fr] gap-4 py-4 hover:bg-muted/50">
-                <div className="font-medium">{task.name}</div>
-                <div className="text-sm text-muted-foreground">{task.command}</div>
-                <div className="text-sm">{task.schedule}</div>
-                <div className={`text-sm ${
-                  task.lastStatus === 'success' ? 'text-green-600' : 
-                  task.lastStatus === 'error' ? 'text-red-600' : 
-                  'text-muted-foreground'
-                }`}>
-                  {task.lastStatus || 'En attente'}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {task.nextRun ? new Date(task.nextRun).toLocaleString() : 'Non planifié'}
-                </div>
-                <div className="flex items-center gap-1">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button 
-                        onClick={() => handleEdit(task)}
-                        className="rounded-md border p-1.5 hover:bg-muted"
-                      >
-                        <Pencil1Icon className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Éditer la tâche</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button 
-                        onClick={() => handleExecute(task.id)}
-                        disabled={executingTaskId === task.id}
-                        className="rounded-md border p-1.5 hover:bg-muted disabled:opacity-50"
-                      >
-                        <PlayIcon className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Exécuter maintenant la tâche</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button 
-                        onClick={() => handleToggleActive(task)}
-                        className={`rounded-md border p-1.5 hover:bg-muted ${
-                          task.isActive ? 'text-green-600' : 'text-red-600'
-                        }`}
-                      >
-                        <SwitchIcon className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{task.isActive ? "Désactiver la tâche" : "Activer la tâche"}</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button 
-                        onClick={() => handleDeleteClick(task)}
-                        className="rounded-md border border-red-200 p-1.5 text-red-600 hover:bg-red-50"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Supprimer la tâche</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
+            <>
+              {/* En-tête du tableau - masqué sur mobile */}
+              <div className="hidden md:grid md:grid-cols-[2fr_2fr_1fr_1fr_1fr_2fr] gap-4 border-b pb-4 font-medium">
+                <div>Nom</div>
+                <div>Commande</div>
+                <div>Planification</div>
+                <div>Dernier statut</div>
+                <div>Prochaine exécution</div>
+                <div>Actions</div>
               </div>
-            ))
+              
+              {/* Liste des tâches avec mise en page adaptative */}
+              {tasks.map((task) => (
+                <div key={task.id} className="flex flex-col md:grid md:grid-cols-[2fr_2fr_1fr_1fr_1fr_2fr] gap-4 py-4 hover:bg-muted/50">
+                  {/* Nom de la tâche */}
+                  <div className="font-medium md:block">
+                    {task.name}
+                  </div>
+                  
+                  {/* Commande (visible sur desktop et mobile) */}
+                  <div className="text-sm text-muted-foreground">
+                    {task.command}
+                  </div>
+                  
+                  <div className="flex flex-col space-y-1 md:block">
+                    <div className="md:hidden text-xs text-muted-foreground">Planification:</div>
+                    <div className="text-sm">{task.schedule}</div>
+                  </div>
+                  
+                  <div className="flex flex-col space-y-1 md:block">
+                    <div className="md:hidden text-xs text-muted-foreground">Statut:</div>
+                    <div className={`text-sm ${
+                      task.lastStatus === 'success' ? 'text-green-600' : 
+                      task.lastStatus === 'error' ? 'text-red-600' : 
+                      'text-muted-foreground'
+                    }`}>
+                      {task.lastStatus || 'En attente'}
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col space-y-1 md:block">
+                    <div className="md:hidden text-xs text-muted-foreground">Prochaine exécution:</div>
+                    <div className="text-sm text-muted-foreground">
+                      {task.nextRun ? new Date(task.nextRun).toLocaleString() : 'Non planifié'}
+                    </div>
+                  </div>
+                  
+                  {/* Actions toujours au bas sur mobile */}
+                  <div className="flex items-center gap-1 mt-4 md:mt-0 border-t md:border-0 pt-4 md:pt-0">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button 
+                          onClick={() => handleEdit(task)}
+                          className="rounded-md border p-1.5 hover:bg-muted"
+                        >
+                          <Pencil1Icon className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Éditer la tâche</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button 
+                          onClick={() => handleExecute(task.id)}
+                          disabled={executingTaskId === task.id}
+                          className="rounded-md border p-1.5 hover:bg-muted disabled:opacity-50"
+                        >
+                          <PlayIcon className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Exécuter maintenant la tâche</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button 
+                          onClick={() => handleToggleActive(task)}
+                          className={`rounded-md border p-1.5 hover:bg-muted ${
+                            task.isActive ? 'text-green-600' : 'text-red-600'
+                          }`}
+                        >
+                          <SwitchIcon className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{task.isActive ? "Désactiver la tâche" : "Activer la tâche"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button 
+                          onClick={() => handleDeleteClick(task)}
+                          className="rounded-md border border-red-200 p-1.5 text-red-600 hover:bg-red-50"
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Supprimer la tâche</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+              ))}
+            </>
           )}
         </div>
       </div>
