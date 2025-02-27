@@ -1,36 +1,117 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Croner - Advanced Cron Task Management System
 
-## Getting Started
+A modern web application for managing, scheduling, and monitoring cron tasks on Ubuntu 22.04 servers.
 
-First, run the development server:
+## Features
+
+- 🔐 **Advanced Authentication**
+  - Role-based access control
+  - First-time admin account setup
+  - Secure session management
+
+- 📅 **Task Management**
+  - Create and manage cron tasks
+  - Flexible scheduling options
+  - Support for curl commands and system executables
+  - Task enable/disable functionality
+
+- ⚡ **Execution Engine**
+  - Automated scheduling
+  - Manual task execution
+  - Timeout management
+  - Permission verification
+
+- 📊 **Monitoring & History**
+  - Detailed execution logs
+  - Success/failure tracking
+  - Performance metrics
+  - Advanced filtering and search
+
+- 🔔 **Smart Notifications**
+  - Execution failure alerts
+  - Daily/weekly execution summaries
+  - Task modification notifications
+
+## Tech Stack
+
+- **Frontend**: Next.js 14, Shadcn UI, Tailwind CSS, Zustand
+- **Backend**: Node.js 20 LTS, Next.js API Routes, NextAuth.js v5
+- **Database**: SQLite with Prisma ORM
+- **Deployment**: Ubuntu Server 22.04 LTS, PM2
+
+## Prerequisites
+
+- Node.js 20 LTS
+- Ubuntu Server 22.04 LTS
+- Git
+
+## Quick Start
 
 ```bash
+# Clone the repository
+git clone https://github.com/barryab12/croner.git
+
+# Install dependencies
+cd croner
+npm install
+
+# Set up environment variables
+cp .env.example .env
+
+# Initialize the database
+npm run db:setup
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment Configuration
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create a `.env` file with the following variables:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+DATABASE_URL="file:./dev.db"
+NEXTAUTH_SECRET="your-secret-key"
+NEXTAUTH_URL="http://localhost:3000"
+```
 
-## Learn More
+## Development
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# Run tests
+npm test
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Build for production
+npm run build
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Start production server
+npm start
+```
 
-## Deploy on Vercel
+## Project Structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+croner/
+├── app/            # Next.js application routes
+├── components/     # Reusable UI components
+├── core/          # Core business logic modules
+├── lib/           # Shared utilities and helpers
+├── prisma/        # Database schema and migrations
+└── public/        # Static assets
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+MIT
+
+## Support
+
+For support, please open an issue in the GitHub repository or contact the maintenance team.

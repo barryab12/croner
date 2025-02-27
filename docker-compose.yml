@@ -1,0 +1,53 @@
+networks:
+  croner-network:
+    driver: bridge
+
+services:
+  croner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: croner-app
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/db/croner.db
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=votre-secret-nextauth-tres-securise-ici
+    volumes:
+      - croner-data:/app/db
+    networks:
+      - croner-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    labels:
+      - "com.croner.description=Task Scheduler Application"
+      - "com.croner.environment=production"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  croner-data:
+    name: croner-data
+    driver: local
