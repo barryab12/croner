@@ -97,7 +97,7 @@ export default function TasksPage() {
           t.id === task.id ? {
             ...t,
             isActive: !t.isActive,
-            nextRun: !t.isActive ? updatedTask.nextRun : null // Mettre à jour nextRun selon l'état
+            nextRun: !t.isActive ? updatedTask.nextRun : null 
           } : t
         )
       );
@@ -121,7 +121,7 @@ export default function TasksPage() {
               ...t,
               lastStatus: result.task.lastStatus,
               lastRun: result.task.lastRun,
-              nextRun: result.task.nextRun // Mise à jour explicite de nextRun
+              nextRun: result.task.nextRun 
             }
           : t
       ));

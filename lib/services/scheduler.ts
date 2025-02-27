@@ -19,7 +19,7 @@ const tasksInProgress = new Set<string>();
 
 // Traitement des tâches
 taskQueue.process(async (job) => {
-  const { taskId } = job.data; // Accéder au taskId via job.data
+  const { taskId } = job.data; 
   console.log(`Processing task ${taskId} from queue`);
   
   // Ajouter la tâche à l'ensemble des tâches en cours
@@ -92,7 +92,7 @@ export const addTaskToQueue = async (taskId: string) => {
 
 class TaskScheduler {
   private jobs: Map<string, Job>;
-  private taskToJobMap: Map<string, string>; // Map taskId -> jobId
+  private taskToJobMap: Map<string, string>;
   private static instance: TaskScheduler;
   private initialized: boolean = false;
 
@@ -196,7 +196,6 @@ class TaskScheduler {
       
       if (!job) {
         // La tâche était déjà en cours d'exécution ou en file d'attente
-        // Attendre un peu puis récupérer le résultat final
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         const task = await prisma.task.findUnique({
@@ -355,5 +354,4 @@ class TaskScheduler {
   }
 }
 
-// Exporter une instance unique du scheduler
 export const taskScheduler = TaskScheduler.getInstance();

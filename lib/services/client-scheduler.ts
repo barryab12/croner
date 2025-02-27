@@ -76,5 +76,4 @@ export class ClientScheduler {
   }
 }
 
-// Export a singleton instance
 export const clientScheduler = ClientScheduler.getInstance();
