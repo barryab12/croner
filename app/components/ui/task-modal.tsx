@@ -1,3 +1,4 @@
+'use client';
 import { useState, useEffect, ChangeEvent } from 'react';
 import type { Task } from '@/types/prisma';
 import { Input } from "@/components/ui/input"
@@ -10,9 +11,10 @@ interface TaskModalProps {
   onClose: () => void;
   task?: Task;
   mode?: 'create' | 'edit';
+  templateTask?: Task; // Nouvelle prop pour la duplication
 }
 
-export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: TaskModalProps) {
+export default function TaskModal({ isOpen, onClose, task, mode = 'create', templateTask }: TaskModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -62,13 +64,19 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
 
   // Premier useEffect pour initialiser le formulaire
   useEffect(() => {
-    if (task && mode === 'edit') {
+    // Utiliser templateTask si disponible en mode création, sinon utiliser task en mode édition
+    const sourceTask = mode === 'create' && templateTask ? templateTask : task;
+    
+    if (sourceTask) {
       let time = '00:00';
       let schedule = 'custom';
-      let customSchedule = task.schedule;
-
+      let customSchedule = sourceTask.schedule;
+      
+      // Ajuster le nom pour la duplication
+      let name = mode === 'create' && templateTask ? `${sourceTask.name} (copie)` : sourceTask.name;
+      
       // Vérifier si la tâche correspond à un des schémas prédéfinis
-      const cronParts = task.schedule.split(' ');
+      const cronParts = sourceTask.schedule.split(' ');
       if (cronParts.length === 5) {
         const [minutes, hours, dayMonth, month, dayWeek] = cronParts;
         
@@ -105,17 +113,16 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
           }
         }
       }
-
       // Mettre à jour l'état du formulaire avec les valeurs initiales
       setFormData({
-        name: task.name,
-        command: task.command,
+        name,
+        command: sourceTask.command,
         schedule,
         time,
         customSchedule,
       });
     }
-  }, [task, mode]);
+  }, [task, templateTask, mode]);
 
   // Deuxième useEffect pour mettre à jour la description
   useEffect(() => {
@@ -154,19 +161,24 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
       if (!finalCronExpression) {
         throw new Error('Expression cron invalide');
       }
-
+      
       // Valider l'expression cron
       const isValid = validateCronExpression(finalCronExpression);
       if (!isValid) {
         throw new Error('Expression cron invalide');
       }
 
+      const isDuplication = mode === 'create' && templateTask !== undefined;
       const method = mode === 'create' ? 'POST' : 'PATCH';
+      
       const body = mode === 'create' 
         ? { 
             name: formData.name, 
             command: formData.command, 
-            schedule: finalCronExpression
+            schedule: finalCronExpression,
+            // Dans le cas d'une duplication, définir toujours isActive à false d'abord
+            // pour éviter l'exécution automatique immédiate avant que tout soit prêt
+            isActive: isDuplication ? false : true
           }
         : { 
             id: task?.id, 
@@ -176,6 +188,8 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
             schedule: finalCronExpression
           };
 
+      console.log(`Envoi de la requête ${method} pour la tâche avec les données:`, body);
+      
       const response = await fetch('/api/tasks', {
         method,
         headers: {
@@ -188,22 +202,53 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create' }: Ta
         const errorData = await response.json();
         throw new Error(errorData.message || 'Une erreur est survenue');
       }
-
-      // Récupérer la tâche mise à jour
-      await response.json();
       
+      // Récupérer la tâche créée ou mise à jour
+      const newTask = await response.json();
+      
+      // Notifier l'utilisateur du succès
       toast.success(mode === 'create' ? 'Tâche créée avec succès' : 'Tâche modifiée avec succès');
       
-      // Fermer le modal et forcer un rafraîchissement complet de la page
+      // Fermer le modal avant toute opération supplémentaire
       onClose();
       
-      // Recharger la page après un court délai pour s'assurer que les modifications sont visibles
+      // Pour les tâches dupliquées, attendre que la tâche soit bien créée puis l'activer
+      if (isDuplication) {
+        console.log(`Activation de la tâche dupliquée ${newTask.id} après création`);
+        
+        // Attendre un court délai pour s'assurer que la tâche est bien enregistrée
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        try {
+          // Activer la tâche dans une deuxième requête
+          const activationResponse = await fetch('/api/tasks', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              id: newTask.id,
+              isActive: true,
+            }),
+          });
+          
+          if (!activationResponse.ok) {
+            console.error("Erreur lors de l'activation de la tâche dupliquée", await activationResponse.text());
+            toast.error("La tâche a été créée mais n'a pas pu être activée");
+          } else {
+            console.log("Tâche dupliquée activée avec succès");
+          }
+        } catch (activationError) {
+          console.error("Erreur lors de l'activation de la tâche dupliquée:", activationError);
+        }
+      }
+      
+      // Recharger la page après un délai suffisant pour s'assurer que toutes les opérations sont terminées
       setTimeout(() => {
         window.location.reload();
-      }, 500);
+      }, 1000);
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Une erreur est survenue');
-    } finally {
       setIsSubmitting(false);
     }
   }

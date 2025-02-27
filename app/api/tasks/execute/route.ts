@@ -1,38 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { executeTask } from '@/lib/server-actions/tasks';
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../../auth/[...nextauth]/route';
+import { taskScheduler } from '@/lib/services/scheduler';
 
-export async function POST(request: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const body = await request.json();
-    const { taskId } = body;
-
-    if (!taskId) {
-      return NextResponse.json({ error: 'Task ID is required' }, { status: 400 });
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user) {
+      return NextResponse.json({ message: 'Non autorisé' }, { status: 401 });
     }
 
-    const result = await executeTask(taskId);
+    const { taskId } = await req.json();
 
-    // S'assurer que toutes les propriétés nécessaires sont présentes
-    return NextResponse.json({
-      task: {
-        id: result.task.id,
-        lastStatus: result.task.lastStatus || null,
-        lastRun: result.task.lastRun || null,
-        nextRun: result.task.nextRun || null,
-        name: result.task.name,
-        command: result.task.command,
-        schedule: result.task.schedule,
-        isActive: result.task.isActive,
-        createdAt: result.task.createdAt,
-        updatedAt: result.task.updatedAt
-      }
-    });
+    if (!taskId) {
+      return NextResponse.json({ message: 'Task ID is required' }, { status: 400 });
+    }
 
+    const result = await taskScheduler.executeTaskNow(taskId);
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('Error executing task:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    );
+    console.error('Task execution error:', error);
+    return NextResponse.json({ 
+      message: error instanceof Error ? error.message : 'Internal server error' 
+    }, { status: 500 });
   }
 }

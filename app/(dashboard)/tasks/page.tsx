@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import TaskModal from '@/app/components/ui/task-modal';
 import DeleteTaskDialog from '@/app/components/ui/delete-task-dialog';
 import type { Task } from '@/types/prisma';
-import { Pencil1Icon, PlayIcon, TrashIcon, SwitchIcon } from "@radix-ui/react-icons";
+import { Pencil1Icon, PlayIcon, TrashIcon, SwitchIcon, CopyIcon } from "@radix-ui/react-icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/app/components/ui/tooltip";
+import { clientScheduler } from '@/lib/services/client-scheduler';
 
 export default function TasksPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -13,6 +14,7 @@ export default function TasksPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedTask, setSelectedTask] = useState<Task | undefined>();
+  const [templateTask, setTemplateTask] = useState<Task | undefined>();
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
@@ -40,12 +42,21 @@ export default function TasksPage() {
 
   function handleEdit(task: Task) {
     setSelectedTask(task);
+    setTemplateTask(undefined);
     setModalMode('edit');
     setIsModalOpen(true);
   }
 
   function handleCreate() {
     setSelectedTask(undefined);
+    setTemplateTask(undefined);
+    setModalMode('create');
+    setIsModalOpen(true);
+  }
+
+  function handleDuplicate(task: Task) {
+    setSelectedTask(undefined);
+    setTemplateTask(task);
     setModalMode('create');
     setIsModalOpen(true);
   }
@@ -78,22 +89,7 @@ export default function TasksPage() {
 
   async function handleToggleActive(task: Task) {
     try {
-      const response = await fetch('/api/tasks', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: task.id,
-          isActive: !task.isActive,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors de la modification du statut');
-      }
-
-      const updatedTask = await response.json();
+      const updatedTask = await clientScheduler.toggleTask(task.id, !task.isActive);
       
       // Mettre à jour la tâche localement avec toutes les informations
       setTasks(prevTasks => 
@@ -113,48 +109,27 @@ export default function TasksPage() {
 
   async function handleExecute(taskId: string) {
     if (executingTaskId === taskId) return; // Éviter les doubles clics
-    
     setExecutingTaskId(taskId);
     
-    // Créer un timeout pour débloquer le bouton après 30 secondes
-    const timeout = setTimeout(() => {
-      setExecutingTaskId(null);
-    }, 2000);
-
     try {
-      const response = await fetch('/api/tasks', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ id: taskId, execute: true }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors de l\'exécution de la tâche');
-      }
-
-      const result = await response.json();
+      const result = await clientScheduler.executeTaskNow(taskId);
       
-      // Mettre à jour la tâche localement
-      setTasks(prevTasks => 
-        prevTasks.map(t => 
-          t.id === taskId 
-            ? {
-                ...t,
-                lastStatus: result.task.lastStatus,
-                lastRun: result.task.lastRun,
-                nextRun: result.task.nextRun
-              } 
-            : t
-        )
-      );
+      // Mettre à jour la tâche localement avec toutes les informations
+      setTasks((prevTasks) => prevTasks.map((t) =>
+        t.id === taskId
+          ? {
+              ...t,
+              lastStatus: result.task.lastStatus,
+              lastRun: result.task.lastRun,
+              nextRun: result.task.nextRun // Mise à jour explicite de nextRun
+            }
+          : t
+      ));
     } catch (error) {
       setError('Une erreur est survenue lors de l\'exécution de la tâche');
       console.error(error);
     } finally {
-      clearTimeout(timeout); // Nettoyer le timeout
-      setExecutingTaskId(null); // Toujours réactiver le bouton
+      setExecutingTaskId(null);
     }
   }
 
@@ -285,6 +260,20 @@ export default function TasksPage() {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button 
+                          onClick={() => handleDuplicate(task)}
+                          className="rounded-md border p-1.5 hover:bg-muted"
+                        >
+                          <CopyIcon className="h-4 w-4" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Dupliquer la tâche</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button 
                           onClick={() => handleExecute(task.id)}
                           disabled={executingTaskId === task.id}
                           className="rounded-md border p-1.5 hover:bg-muted disabled:opacity-50"
@@ -339,9 +328,11 @@ export default function TasksPage() {
         onClose={() => {
           setIsModalOpen(false);
           setSelectedTask(undefined);
+          setTemplateTask(undefined);
           fetchTasks();
         }}
         task={selectedTask}
+        templateTask={templateTask}
         mode={modalMode}
       />
 

@@ -110,14 +110,31 @@ export class MemoryQueue extends EventEmitter {
     this.emit('active', job);
 
     try {
-      const result = await this.processor(job.data);
+      // Passer le job entier au processeur pour qu'il puisse accéder à job.data
+      const result = await this.processor(job);
       job.status = 'completed';
       job.result = result;
+      
+      // Émettre les événements génériques
       this.emit('completed', job);
+      
+      // Émettre un événement spécifique à l'ID de la tâche (pas à l'ID du job)
+      if (job.data && job.data.taskId) {
+        this.emit(`job-success:${job.data.taskId}`, result);
+      }
+      
     } catch (error) {
       job.status = 'failed';
       job.error = error as Error;
+      
+      // Émettre les événements génériques
       this.emit('failed', job, error);
+      
+      // Émettre un événement spécifique à l'ID de la tâche (pas à l'ID du job)
+      if (job.data && job.data.taskId) {
+        this.emit(`job-failed:${job.data.taskId}`, error);
+      }
+      
     } finally {
       this.processingJobs.delete(job.id);
     }
@@ -125,6 +142,17 @@ export class MemoryQueue extends EventEmitter {
 
   async getJob(id: string): Promise<QueueJob | undefined> {
     return this.jobs.get(id);
+  }
+
+  async getJobs(): Promise<QueueJob[]> {
+    return Array.from(this.jobs.values());
+  }
+
+  // Ajout d'une méthode pour trouver un job par ID de tâche
+  async findJobsByTaskId(taskId: string): Promise<QueueJob[]> {
+    return Array.from(this.jobs.values()).filter(job => 
+      job.data && job.data.taskId === taskId
+    );
   }
 
   async clean(age: number) {
