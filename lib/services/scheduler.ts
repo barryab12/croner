@@ -2,9 +2,46 @@ import { type Task } from "@prisma/client";
 import { scheduleJob, scheduledJobs, Job } from "node-schedule";
 import { executeTask, getActiveTasks, toggleTaskInDatabase, updateTaskNextRun } from "@/lib/server-actions/tasks";
 import { validateCronExpression } from '../utils';
+import { MemoryQueue } from './memory-queue';
+import { prisma } from '../prisma';
+
+const taskQueue = new MemoryQueue('cron-tasks', {
+  concurrency: 1
+});
+
+// Traitement des tâches
+taskQueue.process(async (job) => {
+  const { taskId } = job;
+  console.log(`Processing task ${taskId} from queue`);
+  
+  try {
+    const result = await executeTask(taskId);
+    console.log(`Task ${taskId} executed successfully`);
+    return result;
+  } catch (error) {
+    console.error(`Error executing task ${taskId}:`, error);
+    throw error;
+  }
+});
+
+// Nettoyage périodique des tâches terminées (24h)
+setInterval(() => {
+  taskQueue.clean(24 * 60 * 60 * 1000);
+}, 60 * 60 * 1000);
+
+export const addTaskToQueue = async (taskId: string) => {
+  try {
+    const job = await taskQueue.add(taskId, { taskId });
+    console.log(`Task ${taskId} added to queue with job id ${job.id}`);
+    return job;
+  } catch (error) {
+    console.error(`Error adding task ${taskId} to queue:`, error);
+    throw error;
+  }
+};
 
 class TaskScheduler {
-  private jobs: Map<string, Job>;
+  private jobs: Map<string, any>;
   private static instance: TaskScheduler;
 
   private constructor() {
@@ -38,12 +75,12 @@ class TaskScheduler {
       : task.schedule;
 
     const job = scheduleJob(task.id, cronSchedule, async () => {
-      console.log(`Exécution de la tâche ${task.id} à ${new Date().toISOString()}`);
+      // Lors de l'exécution planifiée, on ajoute simplement la tâche à la queue
+      console.log(`Programmation de la tâche ${task.id} à ${new Date().toISOString()}`);
       try {
-        const result = await executeTask(task.id);
-        console.log(`Tâche ${task.id} exécutée avec succès`);
+        await addTaskToQueue(task.id);
       } catch (error) {
-        console.error(`Erreur lors de l'exécution de la tâche ${task.id}:`, error);
+        console.error(`Erreur lors de l'ajout de la tâche ${task.id} à la file d'attente:`, error);
       }
     });
 
@@ -74,24 +111,40 @@ class TaskScheduler {
 
   async executeTaskNow(taskId: string) {
     try {
-      const result = await executeTask(taskId);
-      const task = result.task;
+      // Create a promise that resolves when the job completes
+      const jobCompletionPromise = new Promise((resolve, reject) => {
+        taskQueue.once(`job-success:${taskId}`, (result) => resolve(result));
+        taskQueue.once(`job-failed:${taskId}`, (error) => reject(error));
+      });
 
-      // Si la tâche est active, mettre à jour la prochaine exécution
-      if (task.isActive) {
-        const job = this.jobs.get(taskId);
-        if (job) {
-          const nextRun = job.nextInvocation();
-          if (nextRun) {
-            await this.updateNextRun(taskId, nextRun.toISOString());
-          }
-        }
+      // Add the task to the queue
+      await addTaskToQueue(taskId);
+
+      // Wait for the job to complete
+      await jobCompletionPromise;
+
+      // Récupérer la tâche mise à jour après l'exécution
+      const task = await prisma.task.findUnique({
+        where: { id: taskId }
+      });
+
+      if (!task) {
+        throw new Error('Task not found');
       }
 
-      return result;
+      return {
+        success: true,
+        task: {
+          ...task,
+          lastRun: task.lastRun?.toISOString() || null,
+          nextRun: task.nextRun?.toISOString() || null,
+          createdAt: task.createdAt.toISOString(),
+          updatedAt: task.updatedAt.toISOString()
+        }
+      };
     } catch (error) {
-      console.error(`Erreur lors de l'exécution manuelle de la tâche ${taskId}:`, error);
-      throw error;
+      console.error(`Error executing task ${taskId}:`, error);
+      return { success: false, error };
     }
   }
 

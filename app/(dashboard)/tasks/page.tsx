@@ -112,7 +112,15 @@ export default function TasksPage() {
   }
 
   async function handleExecute(taskId: string) {
+    if (executingTaskId === taskId) return; // Éviter les doubles clics
+    
     setExecutingTaskId(taskId);
+    
+    // Créer un timeout pour débloquer le bouton après 30 secondes
+    const timeout = setTimeout(() => {
+      setExecutingTaskId(null);
+    }, 2000);
+
     try {
       const response = await fetch('/api/tasks', {
         method: 'PATCH',
@@ -128,22 +136,25 @@ export default function TasksPage() {
 
       const result = await response.json();
       
-      // Mettre à jour la tâche localement avec ses nouvelles informations
+      // Mettre à jour la tâche localement
       setTasks(prevTasks => 
         prevTasks.map(t => 
-          t.id === taskId ? {
-            ...t,
-            lastStatus: result.task.lastStatus,
-            lastRun: result.task.lastRun,
-            nextRun: result.task.nextRun
-          } : t
+          t.id === taskId 
+            ? {
+                ...t,
+                lastStatus: result.task.lastStatus,
+                lastRun: result.task.lastRun,
+                nextRun: result.task.nextRun
+              } 
+            : t
         )
       );
     } catch (error) {
       setError('Une erreur est survenue lors de l\'exécution de la tâche');
       console.error(error);
     } finally {
-      setExecutingTaskId(null);
+      clearTimeout(timeout); // Nettoyer le timeout
+      setExecutingTaskId(null); // Toujours réactiver le bouton
     }
   }
 
