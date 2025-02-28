@@ -61,14 +61,16 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copier les fichiers nécessaires
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder /app/prisma/migrations ./prisma/migrations
 COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/next.config.* ./
+COPY --from=builder /app/package.json ./
 
 # Migration de la base de données au démarrage
 COPY --from=builder /app/node_modules/.prisma /app/node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma /app/node_modules/@prisma
+COPY --from=builder /app/node_modules /app/node_modules
 
 # Script de démarrage avec migration
 COPY --from=builder /app/docker-entrypoint.sh ./

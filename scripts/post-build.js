@@ -8,96 +8,34 @@ function main() {
   
   const rootDir = path.resolve(__dirname, '..');
   const nextDir = path.join(rootDir, '.next');
-  const standaloneDir = path.join(nextDir, 'standalone');
   
-  // Vérifier si le répertoire standalone existe
-  if (fs.existsSync(standaloneDir)) {
-    console.log('Répertoire standalone trouvé.');
+  // Vérifier si nous sommes dans un environnement Docker
+  const isDocker = fs.existsSync('/.dockerenv') || process.env.DOCKER_CONTAINER === 'true';
+  
+  // Copier les scripts dans le répertoire .next pour s'assurer qu'ils sont disponibles
+  const scriptsDir = path.join(rootDir, 'scripts');
+  const nextScriptsDir = path.join(nextDir, 'scripts');
+  
+  if (fs.existsSync(scriptsDir)) {
+    console.log('Copie des scripts vers .next...');
     
-    // Copier le répertoire prisma dans le répertoire standalone
-    const prismaSrcDir = path.join(rootDir, 'prisma');
-    const prismaDestDir = path.join(standaloneDir, 'prisma');
-    
-    if (fs.existsSync(prismaSrcDir)) {
-      console.log('Copie du répertoire prisma vers standalone...');
-      
-      // Créer le répertoire de destination s'il n'existe pas
-      if (!fs.existsSync(prismaDestDir)) {
-        fs.mkdirSync(prismaDestDir, { recursive: true });
-      }
-      
-      // Copier les fichiers du répertoire prisma
-      const files = fs.readdirSync(prismaSrcDir);
-      
-      for (const file of files) {
-        const srcPath = path.join(prismaSrcDir, file);
-        const destPath = path.join(prismaDestDir, file);
-        
-        // Ignorer les répertoires node_modules et migrations
-        if (file === 'node_modules' || file === 'migrations') {
-          continue;
-        }
-        
-        // Copier le fichier ou le répertoire
-        if (fs.statSync(srcPath).isDirectory()) {
-          // Copier le répertoire récursivement
-          copyDir(srcPath, destPath);
-        } else {
-          // Copier le fichier
-          fs.copyFileSync(srcPath, destPath);
-        }
-      }
-      
-      console.log('Répertoire prisma copié avec succès.');
+    // Créer le répertoire de destination s'il n'existe pas
+    if (!fs.existsSync(nextScriptsDir)) {
+      fs.mkdirSync(nextScriptsDir, { recursive: true });
     }
     
-    // Mettre à jour le fichier .env dans le répertoire standalone
-    const envSrcPath = path.join(rootDir, '.env');
-    const envDestPath = path.join(standaloneDir, '.env');
-    
-    if (fs.existsSync(envSrcPath)) {
-      console.log('Mise à jour du fichier .env dans standalone...');
+    // Copier les fichiers du répertoire scripts
+    const files = fs.readdirSync(scriptsDir);
+    for (const file of files) {
+      const srcPath = path.join(scriptsDir, file);
+      const destPath = path.join(nextScriptsDir, file);
       
-      let envContent = fs.readFileSync(envSrcPath, 'utf8');
-      
-      // Mettre à jour le chemin de la base de données pour qu'il soit relatif au répertoire standalone
-      const dbUrlRegex = /DATABASE_URL\s*=\s*"([^"]*)"/;
-      const match = envContent.match(dbUrlRegex);
-      
-      if (match) {
-        const newUrl = 'file:./prisma/dev.db';
-        const updatedContent = envContent.replace(
-          dbUrlRegex,
-          `DATABASE_URL="${newUrl}"`
-        );
-        
-        fs.writeFileSync(envDestPath, updatedContent);
-        console.log('Fichier .env mis à jour dans standalone.');
-      } else {
-        // Copier le fichier tel quel
-        fs.copyFileSync(envSrcPath, envDestPath);
+      if (fs.statSync(srcPath).isFile()) {
+        fs.copyFileSync(srcPath, destPath);
       }
     }
     
-    // Copier les scripts dans le répertoire standalone
-    const scriptsSrcDir = path.join(rootDir, 'scripts');
-    const scriptsDestDir = path.join(standaloneDir, 'scripts');
-    
-    if (fs.existsSync(scriptsSrcDir)) {
-      console.log('Copie des scripts vers standalone...');
-      
-      // Créer le répertoire de destination s'il n'existe pas
-      if (!fs.existsSync(scriptsDestDir)) {
-        fs.mkdirSync(scriptsDestDir, { recursive: true });
-      }
-      
-      // Copier les fichiers du répertoire scripts
-      copyDir(scriptsSrcDir, scriptsDestDir);
-      
-      console.log('Scripts copiés avec succès.');
-    }
-  } else {
-    console.log('Répertoire standalone non trouvé. Ignoré.');
+    console.log('Scripts copiés avec succès.');
   }
   
   console.log('Tâches post-build terminées.');
@@ -110,21 +48,16 @@ function copyDir(src, dest) {
     fs.mkdirSync(dest, { recursive: true });
   }
   
-  // Lire les fichiers du répertoire source
-  const files = fs.readdirSync(src);
+  // Lire le contenu du répertoire source
+  const entries = fs.readdirSync(src, { withFileTypes: true });
   
-  for (const file of files) {
-    const srcPath = path.join(src, file);
-    const destPath = path.join(dest, file);
+  // Copier chaque entrée
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
     
-    // Ignorer les répertoires node_modules
-    if (file === 'node_modules') {
-      continue;
-    }
-    
-    // Copier le fichier ou le répertoire
-    if (fs.statSync(srcPath).isDirectory()) {
-      // Copier le répertoire récursivement
+    if (entry.isDirectory()) {
+      // Copier récursivement le sous-répertoire
       copyDir(srcPath, destPath);
     } else {
       // Copier le fichier

@@ -17,4 +17,4 @@ if ! node /app/scripts/docker-db-init.js; then
 fi
 
 echo "Démarrage de l'application Next.js..."
-exec node server.js
+exec next start
