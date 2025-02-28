@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,8 +14,8 @@ export async function GET(
       return NextResponse.json({ message: 'Non autorisé' }, { status: 401 });
     }
     
-    // On s'assure que params est bien attendu en utilisant await Promise.resolve
-    const { id: executionId } = await Promise.resolve(params);
+    // Get the execution ID from params (which is a Promise in Next.js 15)
+    const executionId = (await params).id;
     
     // Récupération de l'exécution de tâche avec vérification des permissions
     const execution = await prisma.taskExecution.findUnique({
