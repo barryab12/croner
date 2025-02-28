@@ -30,18 +30,18 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED 1
 ENV NODE_ENV production
 
-# Générer le prisma client
-RUN npx prisma generate
+# Création du répertoire de la base de données avec les bonnes permissions dès le début
+RUN mkdir -p /app/db && chmod 777 /app/db
 
 # Set DATABASE_URL for build time
 ENV DATABASE_URL="file:/app/db/croner.db"
 ENV DOCKER_CONTAINER="true"
 
-# Ensure database directory exists
-RUN mkdir -p /app/db
-
 # Initialize the database schema
 RUN npx prisma db push --accept-data-loss
+
+# Generate Prisma client
+RUN npx prisma generate
 
 # Build de l'application
 RUN npm run docker:build
@@ -55,7 +55,6 @@ ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 --home /app nextjs && \
-    mkdir -p /app/db && \
     chown -R nextjs:nodejs /app
 
 # Copier les fichiers nécessaires
@@ -87,11 +86,10 @@ RUN chmod +x ./docker-entrypoint.sh
 RUN find /app/scripts -type f -name "*.js" -exec chmod +x {} \;
 
 # Security hardening
-RUN mkdir -p /app/db && \
-    chmod 755 /app/db && \
-    chown nextjs:nodejs /app/db && \
-    chmod -R 755 /app/public && \
-    chmod -R 755 /app/.next/static
+RUN chmod -R 755 /app/public && \
+    chmod -R 755 /app/.next/static && \
+    chmod -R 777 /app/node_modules/.prisma && \
+    chmod -R 777 /app/node_modules/@prisma
 
 USER nextjs
 

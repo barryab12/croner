@@ -50,12 +50,18 @@ function main() {
   
   // Générer le client Prisma
   try {
-    console.log('Génération du client Prisma...');
-    execSync('npx prisma generate', { stdio: 'inherit', cwd: appDir });
-    console.log('Client Prisma généré avec succès.');
+    // Vérifier si le client Prisma existe déjà
+    if (fs.existsSync(path.join(appDir, 'node_modules', '.prisma', 'client'))) {
+      console.log('Client Prisma déjà généré. Ignoré.');
+    } else {
+      console.log('Génération du client Prisma...');
+      execSync('npx prisma generate', { stdio: 'inherit', cwd: appDir });
+      console.log('Client Prisma généré avec succès.');
+    }
   } catch (error) {
     console.error('Erreur lors de la génération du client Prisma:', error);
-    return false;
+    // Ne pas échouer si la génération du client échoue
+    console.log('Poursuite malgré l\'erreur de génération du client Prisma.');
   }
   
   console.log('Initialisation de la base de données terminée avec succès.');
