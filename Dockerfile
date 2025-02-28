@@ -63,6 +63,7 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/prisma/migrations ./prisma/migrations
+COPY --from=builder /app/scripts ./scripts
 
 # Migration de la base de données au démarrage
 COPY --from=builder /app/node_modules/.prisma /app/node_modules/.prisma
@@ -71,6 +72,9 @@ COPY --from=builder /app/node_modules/@prisma /app/node_modules/@prisma
 # Script de démarrage avec migration
 COPY --from=builder /app/docker-entrypoint.sh ./
 RUN chmod +x ./docker-entrypoint.sh
+
+# Rendre les scripts exécutables
+RUN find /app/scripts -type f -name "*.js" -exec chmod +x {} \;
 
 # Security hardening
 RUN chmod -R 755 /app/public && \

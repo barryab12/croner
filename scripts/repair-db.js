@@ -9,6 +9,7 @@ function main() {
   const rootDir = path.resolve(__dirname, '..');
   const prismaDir = path.join(rootDir, 'prisma');
   const dbPath = path.join(prismaDir, 'dev.db');
+  const dbShadowPath = path.join(prismaDir, 'dev.db-journal');
   
   // Vérifier si le répertoire prisma existe
   if (!fs.existsSync(prismaDir)) {
@@ -20,6 +21,33 @@ function main() {
   if (fs.existsSync(dbPath)) {
     console.log('Suppression de la base de données existante...');
     fs.unlinkSync(dbPath);
+  }
+  
+  // Supprimer également le fichier journal si présent
+  if (fs.existsSync(dbShadowPath)) {
+    console.log('Suppression du fichier journal de la base de données...');
+    fs.unlinkSync(dbShadowPath);
+  }
+  
+  // Mettre à jour le fichier .env pour s'assurer que le chemin de la base de données est correct
+  const envPath = path.join(rootDir, '.env');
+  if (fs.existsSync(envPath)) {
+    console.log('Mise à jour du fichier .env...');
+    let envContent = fs.readFileSync(envPath, 'utf8');
+    
+    // Mettre à jour le chemin de la base de données
+    const dbUrlRegex = /DATABASE_URL\s*=\s*"([^"]*)"/;
+    const absoluteDbPath = path.join(rootDir, 'prisma', 'dev.db');
+    const newUrl = `file:${absoluteDbPath}`;
+    
+    if (envContent.match(dbUrlRegex)) {
+      envContent = envContent.replace(dbUrlRegex, `DATABASE_URL="${newUrl}"`);
+    } else {
+      envContent += `\nDATABASE_URL="${newUrl}"\n`;
+    }
+    
+    fs.writeFileSync(envPath, envContent);
+    console.log(`Fichier .env mis à jour avec DATABASE_URL="${newUrl}"`);
   }
   
   // Exécuter les migrations Prisma pour recréer la base de données
@@ -42,17 +70,8 @@ function main() {
     process.exit(1);
   }
   
-  // Configurer le compte administrateur
-  try {
-    console.log('Configuration du compte administrateur...');
-    execSync('node scripts/setup-admin.js', { stdio: 'inherit', cwd: rootDir });
-    console.log('Compte administrateur configuré avec succès.');
-  } catch (error) {
-    console.error('Erreur lors de la configuration du compte administrateur:', error);
-    process.exit(1);
-  }
-  
   console.log('Réparation de la base de données terminée avec succès.');
+  console.log('Vous pouvez maintenant démarrer l\'application et créer le premier administrateur.');
 }
 
 main();

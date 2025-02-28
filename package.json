@@ -12,7 +12,11 @@
     "db:check": "node scripts/check-database.js",
     "post-build": "node scripts/post-build.js",
     "init": "node scripts/init.js",
-    "db:repair": "node scripts/repair-db.js"
+    "db:repair": "node scripts/repair-db.js",
+    "reset:admin": "node scripts/reset-admin.js",
+    "check:users": "node scripts/check-users.js",
+    "clear:cache": "node scripts/clear-cache.js",
+    "reset:all": "node scripts/reset-all.js"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",

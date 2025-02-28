@@ -12,11 +12,13 @@ import {
 export default function FirstAdminForm() {
   const router = useRouter();
   const [error, setError] = useState<string>("");
+  const [success, setSuccess] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setSuccess("");
     setIsLoading(true);
 
     const formData = new FormData(event.currentTarget);
@@ -47,14 +49,29 @@ export default function FirstAdminForm() {
         }),
       });
 
+      const data = await response.json();
+      
       if (!response.ok) {
-        const data = await response.json();
         throw new Error(data.message || "Une erreur est survenue");
       }
 
-      router.refresh();
-      router.push("/login");
+      try {
+        // 1. Définir un cookie pour indiquer que l'admin a été créé
+        document.cookie = "adminCreated=true; path=/";
+        
+        // 2. Utiliser location.replace avec un timestamp pour éviter la mise en cache
+        const timestamp = Date.now();
+        
+        // 3. Rediriger vers une page intermédiaire qui va ensuite rediriger vers login
+        const redirectUrl = `/api/auth/redirect?to=login&success=true&t=${timestamp}`;
+        window.location.replace(redirectUrl);
+      } catch (error) {
+        console.error("Erreur lors de la redirection:", error);
+        // Dernier recours
+        window.location.href = "/";
+      }
     } catch (error) {
+      console.error("Erreur lors de la création du compte:", error);
       setError(error instanceof Error ? error.message : "Une erreur est survenue");
     } finally {
       setIsLoading(false);
@@ -66,6 +83,11 @@ export default function FirstAdminForm() {
       {error && (
         <div className="rounded-md bg-red-50 p-4 text-sm text-red-500">
           {error}
+        </div>
+      )}
+      {success && (
+        <div className="rounded-md bg-green-50 p-4 text-sm text-green-500">
+          {success}
         </div>
       )}
       <div className="space-y-2">

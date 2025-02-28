@@ -1,19 +1,45 @@
 'use client';
 
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
 import { EnvelopeClosedIcon } from "@radix-ui/react-icons";
 import { LockClosedIcon } from "@radix-ui/react-icons";
 
 export default function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [error, setError] = useState<string>("");
+  const [success, setSuccess] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Vérifier si l'utilisateur vient de créer un compte administrateur
+  useEffect(() => {
+    // Vérifier le paramètre dans l'URL
+    if (searchParams) {
+      const successParam = searchParams.get('success');
+      if (successParam === 'true') {
+        // Ne plus afficher de message de succès
+      }
+    }
+    
+    // Vérifier également le cookie
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.startsWith('adminCreated=true')) {
+        // Ne plus afficher de message de succès
+        // Supprimer le cookie après l'avoir lu
+        document.cookie = "adminCreated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        break;
+      }
+    }
+  }, [searchParams]);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    setSuccess("");
     setIsLoading(true);
 
     const formData = new FormData(event.currentTarget);
@@ -46,6 +72,11 @@ export default function LoginForm() {
       {error && (
         <div className="rounded-md bg-red-50 p-4 text-sm text-red-500">
           {error}
+        </div>
+      )}
+      {success && (
+        <div className="rounded-md bg-green-50 p-4 text-sm text-green-500">
+          {success}
         </div>
       )}
       <div className="space-y-2">

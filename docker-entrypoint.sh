@@ -9,20 +9,12 @@ chmod 755 /app/db
 # Set HOME explicitly to avoid /nonexistent
 export HOME=/app
 
-echo "Running database migrations..."
-# Add error handling for migrations
-if ! npx prisma migrate deploy; then
-  echo "Error during database migration. Trying to initialize the database..."
-  # Try to generate the database from scratch if migration fails
-  npx prisma db push --force-reset
-  
-  if [ $? -ne 0 ]; then
-    echo "Failed to initialize the database. Exiting."
-    exit 1
-  fi
-  
-  echo "Database initialized successfully."
+echo "Initialisation de l'application dans Docker..."
+# Utiliser notre script d'initialisation Docker spécifique
+if ! node /app/scripts/docker-init.js; then
+  echo "Erreur lors de l'initialisation de l'application. Sortie."
+  exit 1
 fi
 
-echo "Starting Next.js application..."
+echo "Démarrage de l'application Next.js..."
 exec node server.js

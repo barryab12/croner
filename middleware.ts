@@ -12,11 +12,24 @@ interface AuthToken {
   sub?: string;
 }
 
+// Note: Nous n'utilisons pas PrismaClient directement dans le middleware
+// car cela peut causer des problèmes lors du déploiement
+
 export default withAuth(
   async function middleware(req: NextRequestWithAuth) {
     const token = (await getToken({ req })) as AuthToken;
     const isAuth = !!token;
     const isAuthPage = req.nextUrl.pathname.startsWith("/login");
+
+    // Vérifier si l'URL contient des paramètres spéciaux
+    const hasSuccessParam = req.nextUrl.searchParams.has('success');
+    const hasRefreshParam = req.nextUrl.searchParams.has('refresh');
+    const hasTimestampParam = req.nextUrl.searchParams.has('t');
+    
+    // Si l'URL contient des paramètres spéciaux, ne pas interférer avec la redirection
+    if (hasSuccessParam || hasRefreshParam || hasTimestampParam) {
+      return null;
+    }
 
     if (isAuthPage) {
       if (isAuth) {
