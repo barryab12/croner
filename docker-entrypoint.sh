@@ -1,8 +1,13 @@
 #!/bin/sh
 set -e
 
-# Ensure database directory exists
+# Ensure database directory exists and has correct permissions
 mkdir -p /app/db
+chown -R nextjs:nodejs /app/db
+chmod 755 /app/db
+
+# Set HOME explicitly to avoid /nonexistent
+export HOME=/app
 
 echo "Running database migrations..."
 # Add error handling for migrations
