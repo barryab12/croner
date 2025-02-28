@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
 
 export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  req: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -14,8 +14,8 @@ export async function GET(
       return NextResponse.json({ message: 'Non autorisé' }, { status: 401 });
     }
     
-    // Await the params Promise to get the id
-    const { id: executionId } = await params;
+    // On s'assure que params est bien attendu en utilisant await Promise.resolve
+    const { id: executionId } = await Promise.resolve(params);
     
     // Récupération de l'exécution de tâche avec vérification des permissions
     const execution = await prisma.taskExecution.findUnique({
