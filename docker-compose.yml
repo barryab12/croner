@@ -9,27 +9,27 @@ services:
       dockerfile: Dockerfile
     container_name: croner-app
     ports:
-      - "3000:3000"
+      - "3099:3000"
     restart: unless-stopped
     environment:
       - NODE_ENV=production
       - DATABASE_URL=file:/app/db/croner.db
-      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_URL=http://localhost:3099
       - NEXTAUTH_SECRET=votre-secret-nextauth-tres-securise-ici
     volumes:
-      - croner-data:/app/db
+      - ./data:/app/db
     networks:
       - croner-network
     deploy:
       resources:
         limits:
-          cpus: '0.50'
+          cpus: "0.50"
           memory: 512M
         reservations:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 256M
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3099/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -46,12 +46,3 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-
-volumes:
-  croner-data:
-    name: croner-data
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./data

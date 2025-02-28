@@ -87,10 +87,11 @@ RUN chmod +x ./docker-entrypoint.sh
 RUN find /app/scripts -type f -name "*.js" -exec chmod +x {} \;
 
 # Security hardening
-RUN chmod -R 755 /app/public && \
-    chmod -R 755 /app/.next/static && \
-    mkdir -p /app/db && \
-    chmod 777 /app/db
+RUN mkdir -p /app/db && \
+    chmod 755 /app/db && \
+    chown nextjs:nodejs /app/db && \
+    chmod -R 755 /app/public && \
+    chmod -R 755 /app/.next/static
 
 USER nextjs
 
