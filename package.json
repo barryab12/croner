@@ -4,9 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "build": "node scripts/check-database.js && prisma migrate deploy && prisma generate && next build && node scripts/post-build.js",
+    "start": "node scripts/check-database.js && next start",
+    "lint": "next lint",
+    "db:setup": "node scripts/check-database.js && prisma migrate deploy && prisma generate",
+    "setup:admin": "node scripts/setup-admin.js",
+    "db:check": "node scripts/check-database.js",
+    "post-build": "node scripts/post-build.js",
+    "init": "node scripts/init.js",
+    "db:repair": "node scripts/repair-db.js"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",
