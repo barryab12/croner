@@ -69,9 +69,15 @@ function main() {
 }
 
 // Exécuter la fonction principale
-if (main()) {
-  console.log('Base de données prête.');
-} else {
-  console.error('Erreur lors de l\'initialisation de la base de données.');
+try {
+  if (main()) {
+    console.log('Base de données prête.');
+    process.exit(0);
+  } else {
+    console.error('Erreur lors de l\'initialisation de la base de données.');
+    process.exit(1);
+  }
+} catch (error) {
+  console.error('Erreur inattendue lors de l\'initialisation de la base de données:', error);
   process.exit(1);
 }

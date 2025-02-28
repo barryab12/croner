@@ -80,7 +80,7 @@ COPY --from=builder /app/node_modules/@prisma /app/node_modules/@prisma
 
 # Script de démarrage avec migration
 COPY --from=builder /app/docker-entrypoint.sh ./
-RUN chmod +x ./docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
 # Rendre les scripts exécutables
 RUN find /app/scripts -type f -name "*.js" -exec chmod +x {} \;
@@ -90,6 +90,9 @@ RUN chmod -R 755 /app/public && \
     chmod -R 755 /app/.next/static && \
     chmod -R 777 /app/node_modules/.prisma && \
     chmod -R 777 /app/node_modules/@prisma
+
+# Add node_modules/.bin to PATH
+ENV PATH="/app/node_modules/.bin:${PATH}"
 
 USER nextjs
 
@@ -102,4 +105,4 @@ ENV DATABASE_URL="file:/app/db/croner.db"
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
     CMD curl -f http://localhost:3000/api/health || exit 1
 
-ENTRYPOINT ["./docker-entrypoint.sh"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
