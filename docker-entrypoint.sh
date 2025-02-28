@@ -1,10 +1,8 @@
 #!/bin/sh
 set -e
 
-# Ensure database directory exists and has correct permissions
+# Ensure database directory exists
 mkdir -p /app/db
-chown -R nextjs:nodejs /app/db
-chmod 755 /app/db
 
 # Set HOME explicitly to avoid /nonexistent
 export HOME=/app

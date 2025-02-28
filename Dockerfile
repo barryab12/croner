@@ -66,11 +66,18 @@ COPY --from=builder /app/prisma/migrations ./prisma/migrations
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/next.config.* ./
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/package-lock.json* /app/yarn.lock* /app/pnpm-lock.yaml* ./
+
+# Installation des dépendances de production uniquement
+RUN if [ -f yarn.lock ]; then yarn --production --frozen-lockfile; \
+    elif [ -f package-lock.json ]; then npm ci --only=production; \
+    elif [ -f pnpm-lock.yaml ]; then yarn global add pnpm && pnpm i --prod --frozen-lockfile; \
+    else npm i --only=production; \
+    fi
 
 # Migration de la base de données au démarrage
 COPY --from=builder /app/node_modules/.prisma /app/node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma /app/node_modules/@prisma
-COPY --from=builder /app/node_modules /app/node_modules
 
 # Script de démarrage avec migration
 COPY --from=builder /app/docker-entrypoint.sh ./
@@ -82,7 +89,8 @@ RUN find /app/scripts -type f -name "*.js" -exec chmod +x {} \;
 # Security hardening
 RUN chmod -R 755 /app/public && \
     chmod -R 755 /app/.next/static && \
-    chown -R nextjs:nodejs /app/db
+    mkdir -p /app/db && \
+    chmod 777 /app/db
 
 USER nextjs
 

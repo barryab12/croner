@@ -51,3 +51,7 @@ volumes:
   croner-data:
     name: croner-data
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data
