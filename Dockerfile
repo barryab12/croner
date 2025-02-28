@@ -33,6 +33,15 @@ ENV NODE_ENV production
 # Générer le prisma client
 RUN npx prisma generate
 
+# Set DATABASE_URL for build time
+ENV DATABASE_URL="file:/app/db/croner.db"
+
+# Ensure database directory exists
+RUN mkdir -p /app/db
+
+# Initialize the database schema
+RUN npx prisma db push --accept-data-loss
+
 # Build de l'application
 RUN npm run build
 
