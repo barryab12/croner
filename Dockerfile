@@ -53,6 +53,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/prisma/migrations ./prisma/migrations
 
 # Migration de la base de données au démarrage
 COPY --from=builder /app/node_modules/.prisma /app/node_modules/.prisma
