@@ -46,9 +46,9 @@ function HistoryContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
-  const [status, setStatus] = useState<string>(searchParams.get('status') || '')
-  const [date, setDate] = useState<string>(searchParams.get('date') || '')
-  const [page, setPage] = useState<number>(parseInt(searchParams.get('page') || '1'))
+  const [status, setStatus] = useState<string>(searchParams?.get('status') || '')
+  const [date, setDate] = useState<string>(searchParams?.get('date') || '')
+  const [page, setPage] = useState<number>(parseInt(searchParams?.get('page') || '1'))
   
   const [selectedExecution, setSelectedExecution] = useState<TaskExecution | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
