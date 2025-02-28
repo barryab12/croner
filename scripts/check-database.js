@@ -5,23 +5,37 @@ const { execSync } = require('child_process');
 
 function main() {
   console.log('Vérification de la configuration de la base de données...');
-  
+
   // Vérifier si le fichier de base de données existe
   const rootDir = path.resolve(__dirname, '..');
   const prismaDir = path.join(rootDir, 'prisma');
-  const dbPath = path.join(prismaDir, 'dev.db');
-  
+
+  // Déterminer le chemin de la base de données en fonction de l'environnement
+  let dbPath;
+
+  // Vérifier si nous sommes dans Docker
+  const isDocker = fs.existsSync('/.dockerenv') || process.env.DOCKER_CONTAINER === 'true';
+
+  if (isDocker) {
+    // Chemin pour Docker
+    dbPath = path.join(rootDir, 'db', 'croner.db');
+    console.log('Environnement Docker détecté');
+  } else {
+    // Chemin pour développement local
+    dbPath = path.join(prismaDir, 'dev.db');
+  }
+
   console.log(`Chemin de la base de données: ${dbPath}`);
-  
+
   if (!fs.existsSync(dbPath)) {
     console.log('Base de données non trouvée. Création...');
-    
+
     // Vérifier si le répertoire prisma existe
     if (!fs.existsSync(prismaDir)) {
       console.log('Création du répertoire prisma...');
       fs.mkdirSync(prismaDir, { recursive: true });
     }
-    
+
     // Exécuter les migrations Prisma
     try {
       console.log('Exécution des migrations Prisma...');
@@ -34,68 +48,40 @@ function main() {
   } else {
     console.log('Base de données trouvée.');
   }
-  
-  // Vérifier le fichier .env
+
+  // Vérifier si le fichier .env existe
   const envPath = path.join(rootDir, '.env');
-  const standalonePath = path.join(rootDir, '.next', 'standalone', '.env');
-  
   if (fs.existsSync(envPath)) {
     console.log('Fichier .env trouvé.');
+
+    // Lire le contenu du fichier .env
     let envContent = fs.readFileSync(envPath, 'utf8');
-    
-    // Vérifier si DATABASE_URL est correctement configuré
-    const dbUrlRegex = /DATABASE_URL\s*=\s*"([^"]*)"/;
-    const match = envContent.match(dbUrlRegex);
-    
-    if (match) {
-      const currentUrl = match[1];
-      console.log(`URL de base de données actuelle: ${currentUrl}`);
-      
-      // Si l'URL est relative, la remplacer par un chemin absolu
-      if (currentUrl.startsWith('file:./')) {
-        const absoluteDbPath = path.join(rootDir, 'prisma', 'dev.db');
-        const newUrl = `file:${absoluteDbPath}`;
-        console.log(`Mise à jour de l'URL de base de données: ${newUrl}`);
-        
-        // Mettre à jour le fichier .env
-        const updatedContent = envContent.replace(
-          dbUrlRegex,
-          `DATABASE_URL="${newUrl}"`
-        );
-        
-        fs.writeFileSync(envPath, updatedContent);
-        console.log('Fichier .env mis à jour.');
-        
-        // Mettre à jour également le fichier .env dans le répertoire standalone s'il existe
-        if (fs.existsSync(standalonePath)) {
-          let standaloneContent = fs.readFileSync(standalonePath, 'utf8');
-          const updatedStandaloneContent = standaloneContent.replace(
-            dbUrlRegex,
-            `DATABASE_URL="${newUrl}"`
-          );
-          fs.writeFileSync(standalonePath, updatedStandaloneContent);
-          console.log('Fichier .env standalone mis à jour.');
-        }
+
+    // Vérifier si DATABASE_URL est défini
+    const dbUrlRegex = /^DATABASE_URL=.*$/m;
+    const correctDbUrl = `DATABASE_URL="file:${dbPath}"`;
+
+    if (dbUrlRegex.test(envContent)) {
+      // Mettre à jour DATABASE_URL
+      const currentDbUrl = envContent.match(dbUrlRegex)[0];
+      console.log(`URL de base de données actuelle: ${currentDbUrl}`);
+
+      if (currentDbUrl !== correctDbUrl) {
+        console.log(`Mise à jour du fichier .env avec ${correctDbUrl}`);
+        envContent = envContent.replace(dbUrlRegex, correctDbUrl);
+        fs.writeFileSync(envPath, envContent);
       }
     } else {
-      console.log('DATABASE_URL non trouvé dans le fichier .env.');
+      // Ajouter DATABASE_URL
+      console.log(`Ajout de DATABASE_URL au fichier .env: ${correctDbUrl}`);
+      envContent += `\n${correctDbUrl}\n`;
+      fs.writeFileSync(envPath, envContent);
     }
   } else {
     console.log('Fichier .env non trouvé. Création...');
-    
-    // Créer un fichier .env avec le chemin absolu de la base de données
-    const absoluteDbPath = path.join(rootDir, 'prisma', 'dev.db');
-    const envContent = `# Environment variables
-DATABASE_URL="file:${absoluteDbPath}"
-NEXTAUTH_URL=http://localhost:3000
-NEXT_PUBLIC_API_URL=http://localhost:3000
-NEXTAUTH_SECRET="eyYtP8yK3fM9vN4xQ7wJ2hL5gU9nB3vR"
-`;
-    
-    fs.writeFileSync(envPath, envContent);
-    console.log('Fichier .env créé.');
+    fs.writeFileSync(envPath, `DATABASE_URL="file:${dbPath}"\n`);
   }
-  
+
   console.log('Vérification de la base de données terminée.');
 }
 

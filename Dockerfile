@@ -35,6 +35,7 @@ RUN npx prisma generate
 
 # Set DATABASE_URL for build time
 ENV DATABASE_URL="file:/app/db/croner.db"
+ENV DOCKER_CONTAINER="true"
 
 # Ensure database directory exists
 RUN mkdir -p /app/db
@@ -43,7 +44,7 @@ RUN mkdir -p /app/db
 RUN npx prisma db push --accept-data-loss
 
 # Build de l'application
-RUN npm run build
+RUN npm run docker:build
 
 # Image de production
 FROM base AS runner
