@@ -17,6 +17,7 @@ export class ClientScheduler {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // Include cookies for authentication
       body: JSON.stringify({ action: 'start' }),
     });
 
@@ -32,6 +33,7 @@ export class ClientScheduler {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // Include cookies for authentication
       body: JSON.stringify({ action: 'stop' }),
     });
 
@@ -47,6 +49,7 @@ export class ClientScheduler {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // Include cookies for authentication
       body: JSON.stringify({ taskId }),
     });
 
@@ -64,6 +67,7 @@ export class ClientScheduler {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include', // Include cookies for authentication
       body: JSON.stringify({ id: taskId, isActive }),
     });
 

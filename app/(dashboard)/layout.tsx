@@ -1,8 +1,6 @@
 'use client';
 
-import { useMemo } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import { ExitIcon } from "@radix-ui/react-icons"
 import { ThemeToggle } from "@/app/components/theme-toggle"

@@ -155,7 +155,7 @@ export function describeCronExpression(expression: string): CronDescription {
       description,
       isValid: true
     };
-  } catch (error) {
+  } catch {
     return {
       expression,
       description: 'Expression cron invalide',

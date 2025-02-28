@@ -34,7 +34,7 @@ export default function LoginForm() {
 
       router.refresh();
       router.push("/tasks");
-    } catch (error) {
+    } catch {
       setError("Une erreur est survenue");
     } finally {
       setIsLoading(false);
@@ -58,6 +58,7 @@ export default function LoginForm() {
             className="w-full rounded-md border bg-background pl-10 pr-3 py-2"
             placeholder="Adresse email"
             aria-label="Adresse email"
+            suppressHydrationWarning={true}
           />
           <EnvelopeClosedIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
         </div>
@@ -72,6 +73,7 @@ export default function LoginForm() {
             className="w-full rounded-md border bg-background pl-10 pr-3 py-2"
             placeholder="Mot de passe"
             aria-label="Mot de passe"
+            suppressHydrationWarning={true}
           />
           <LockClosedIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
         </div>

@@ -3,7 +3,6 @@
 import { execa } from 'execa';
 import { prisma } from '../prisma';
 import { taskScheduler } from '../services/scheduler';
-import { Task } from '@prisma/client';
 
 export async function executeTask(taskId: string) {
   const task = await prisma.task.findUnique({

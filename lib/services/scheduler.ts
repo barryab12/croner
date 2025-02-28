@@ -1,5 +1,5 @@
 import { type Task } from "@prisma/client";
-import { scheduleJob, scheduledJobs, Job } from "node-schedule";
+import { scheduleJob, Job } from "node-schedule";
 import { executeTask, getActiveTasks, toggleTaskInDatabase, updateTaskNextRun } from "@/lib/server-actions/tasks";
 import { validateCronExpression } from '../utils';
 import { MemoryQueue } from './memory-queue';

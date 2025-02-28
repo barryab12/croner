@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale/fr'
@@ -37,7 +37,7 @@ interface PaginationInfo {
   totalPages: number
 }
 
-export default function HistoryPage() {
+function HistoryContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   
@@ -57,7 +57,7 @@ export default function HistoryPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   
   // Fonction pour charger les exécutions
-  const fetchExecutions = async () => {
+  const fetchExecutions = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     
@@ -84,7 +84,7 @@ export default function HistoryPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [status, date, page])
   
   // Fonction pour charger les détails d'une exécution
   const fetchExecutionDetails = async (id: string) => {
@@ -108,7 +108,7 @@ export default function HistoryPage() {
   }
   
   // Fonction pour mettre à jour les filtres et l'URL
-  const updateFilters = () => {
+  const updateFilters = useCallback(() => {
     const params = new URLSearchParams()
     if (status) params.set('status', status)
     if (date) params.set('date', date)
@@ -117,7 +117,7 @@ export default function HistoryPage() {
     // Mettre à jour l'URL sans recharger la page
     const newUrl = `/history${params.toString() ? '?' + params.toString() : ''}`
     router.push(newUrl)
-  }
+  }, [status, date, page, router])
   
   // Formatage de la durée en format lisible
   const formatDuration = (ms: number) => {
@@ -140,12 +140,12 @@ export default function HistoryPage() {
   // Chargement initial et lors du changement de filtres
   useEffect(() => {
     fetchExecutions()
-  }, [status, date, page])
+  }, [fetchExecutions])
   
   // Mise à jour de l'URL lorsque les filtres changent
   useEffect(() => {
     updateFilters()
-  }, [status, date, page])
+  }, [updateFilters])
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -240,7 +240,7 @@ export default function HistoryPage() {
               />
             </div>
             <div>Tâche</div>
-            <div>Date d'exécution</div>
+            <div>Date d&apos;exécution</div>
             <div>Durée</div>
             <div>Statut</div>
             <div>Actions</div>
@@ -380,7 +380,7 @@ export default function HistoryPage() {
               )}
             </DialogTitle>
             <DialogDescription>
-              Détails et résultats de l'exécution de la tâche planifiée
+              Détails et résultats de l&apos;exécution de la tâche planifiée
             </DialogDescription>
           </DialogHeader>
           
@@ -465,5 +465,13 @@ export default function HistoryPage() {
         count={selectedIds.length}
       />
     </div>
+  )
+}
+
+export default function HistoryPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <HistoryContent />
+    </Suspense>
   )
 }

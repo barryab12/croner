@@ -1,8 +1,6 @@
 'use client';
-import { useState, useEffect, ChangeEvent } from 'react';
+import { useState, useEffect, ChangeEvent, useCallback } from 'react';
 import type { Task } from '@/types/prisma';
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { describeCronExpression, validateCronExpression } from "@/lib/utils"
 
@@ -24,7 +22,7 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create', temp
     time: '00:00',
     customSchedule: '',
   });
-  const [cronDescription, setCronDescription] = useState<string>('');
+  const [cronDescription, setCronDescription] = useState('');
 
   // Fonction pour obtenir l'expression cron basée sur le type de planification
   const getCronExpression = (scheduleType: string, timeValue: string, customValue?: string): string => {
@@ -43,24 +41,34 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create', temp
     }
   };
 
-  // Mettre à jour la description quand le schedule ou l'heure change
-  const updateCronDescription = (schedule: string, timeValue: string) => {
-    if (schedule === 'custom') {
-      if (formData.customSchedule) {
-        const { description, isValid } = describeCronExpression(formData.customSchedule);
-        setCronDescription(description);
-        if (!isValid) {
-          toast.error("Expression cron invalide");
-        }
-      } else {
-        setCronDescription('');
-      }
+  // Fonction pour mettre à jour la description du cron
+  const updateCronDescription = useCallback((scheduleType: string, timeValue: string) => {
+    if (scheduleType === 'custom') {
+      const result = describeCronExpression(formData.customSchedule);
+      setCronDescription(result.description);
     } else {
-      const cronExp = getCronExpression(schedule, timeValue);
-      const { description } = describeCronExpression(cronExp);
-      setCronDescription(description);
+      // Générer l'expression cron en fonction du type de planification et de l'heure
+      const [hours, minutes] = timeValue.split(':');
+      let cronExpression = '';
+      
+      switch (scheduleType) {
+        case 'daily':
+          cronExpression = `${minutes} ${hours} * * *`;
+          break;
+        case 'weekly':
+          cronExpression = `${minutes} ${hours} * * 1`;
+          break;
+        case 'monthly':
+          cronExpression = `${minutes} ${hours} 1 * *`;
+          break;
+        default:
+          cronExpression = '0 0 * * *';
+      }
+      
+      const result = describeCronExpression(cronExpression);
+      setCronDescription(result.description);
     }
-  };
+  }, [formData.customSchedule]);
 
   // Premier useEffect pour initialiser le formulaire
   useEffect(() => {
@@ -73,7 +81,7 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create', temp
       let customSchedule = sourceTask.schedule;
       
       // Ajuster le nom pour la duplication
-      let name = mode === 'create' && templateTask ? `${sourceTask.name} (copie)` : sourceTask.name;
+      const name = mode === 'create' && templateTask ? `${sourceTask.name} (copie)` : sourceTask.name;
       
       // Vérifier si la tâche correspond à un des schémas prédéfinis
       const cronParts = sourceTask.schedule.split(' ');
@@ -106,7 +114,7 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create', temp
           schedule = 'monthly';
           
           if (!hours.includes('*') && !minutes.includes('*')) {
-            time = `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+            time = `${hours.padStart(2, '0')}:{minutes.padStart(2, '0')}`;
             customSchedule = '';
           } else {
             schedule = 'custom';
@@ -127,7 +135,7 @@ export default function TaskModal({ isOpen, onClose, task, mode = 'create', temp
   // Deuxième useEffect pour mettre à jour la description
   useEffect(() => {
     updateCronDescription(formData.schedule, formData.time);
-  }, [formData.schedule, formData.time, formData.customSchedule]);
+  }, [formData.schedule, formData.time, updateCronDescription]);
 
   const handleScheduleChange = (e: ChangeEvent<HTMLSelectElement>) => {
     const newSchedule = e.target.value;

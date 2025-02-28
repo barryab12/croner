@@ -1,35 +1,45 @@
 'use client';
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { clientScheduler } from "@/lib/services/client-scheduler";
+import { useSession } from "next-auth/react";
 
 export function SchedulerProvider({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    const initializeScheduler = async () => {
-      try {
-        console.log('Initialisation du scheduler...');
-        await clientScheduler.start();
-      } catch (error) {
-        console.error('Erreur lors de l\'initialisation du scheduler:', error);
-        toast.error("Erreur lors de l'initialisation du planificateur de tâches");
-      }
-    };
+  const { status } = useSession();
+  const [initialized, setInitialized] = useState(false);
 
-    initializeScheduler();
+  useEffect(() => {
+    // Only initialize the scheduler if the user is authenticated
+    if (status === 'authenticated' && !initialized) {
+      const initializeScheduler = async () => {
+        try {
+          console.log('Initialisation du scheduler...');
+          await clientScheduler.start();
+          setInitialized(true);
+        } catch (error) {
+          console.error('Erreur lors de l\'initialisation du scheduler:', error);
+          toast.error("Erreur lors de l'initialisation du planificateur de tâches");
+        }
+      };
+
+      initializeScheduler();
+    }
 
     // Nettoyage lors du démontage du composant
     return () => {
-      const stopScheduler = async () => {
-        try {
-          console.log('Arrêt du scheduler...');
-          await clientScheduler.stop();
-        } catch (error) {
-          console.error('Erreur lors de l\'arrêt du scheduler:', error);
-        }
-      };
-      stopScheduler();
+      if (initialized) {
+        const stopScheduler = async () => {
+          try {
+            console.log('Arrêt du scheduler...');
+            await clientScheduler.stop();
+          } catch (error) {
+            console.error('Erreur lors de l\'arrêt du scheduler:', error);
+          }
+        };
+        stopScheduler();
+      }
     };
-  }, []); // Une seule fois au montage
+  }, [status, initialized]); // Dependency on authentication status and initialization state
 
   return <>{children}</>;
 }
