@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { z } from 'zod';
-import { authOptions } from '../auth/[...nextauth]/auth-options';
-import { prisma } from '@/lib/prisma';
 import { taskScheduler } from '@/lib/services/scheduler';
+import { prisma } from '@/lib/prisma';
 
 // Schéma de validation pour la création d'une tâche
 const taskSchema = z.object({
