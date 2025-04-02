@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "node scripts/check-database.js && prisma generate && next build && node scripts/post-build.js",
     "docker:build": "prisma generate && next build && node scripts/post-build.js",
-    "start": "node scripts/check-database.js && next start",
+    "start": "node scripts/check-database.js && next start --port 3099",
     "lint": "next lint",
     "db:setup": "node scripts/check-database.js && prisma migrate deploy && prisma generate",
     "setup:admin": "node scripts/setup-admin.js",
