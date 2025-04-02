@@ -15,6 +15,9 @@ interface AuthToken {
 // Note: Nous n'utilisons pas PrismaClient directement dans le middleware
 // car cela peut causer des problèmes lors du déploiement
 
+// Récupérer l'URL de redirection depuis les variables d'environnement
+const DEFAULT_AUTH_REDIRECT = process.env.DEFAULT_AUTH_REDIRECT || "/tasks";
+
 export default withAuth(
   async function middleware(req: NextRequestWithAuth) {
     const token = (await getToken({ req })) as AuthToken;
@@ -33,7 +36,7 @@ export default withAuth(
 
     if (isAuthPage) {
       if (isAuth) {
-        return NextResponse.redirect(new URL("/tasks", req.url));
+        return NextResponse.redirect(new URL(DEFAULT_AUTH_REDIRECT, req.url));
       }
       return null;
     }
@@ -50,7 +53,7 @@ export default withAuth(
     }
 
     if (req.nextUrl.pathname.startsWith("/admin") && token.role !== Role.ADMIN) {
-      return NextResponse.redirect(new URL("/tasks", req.url));
+      return NextResponse.redirect(new URL(DEFAULT_AUTH_REDIRECT, req.url));
     }
   },
   {
